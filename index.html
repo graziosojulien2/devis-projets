@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Devis & Projets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#f8f3ea;--p1:#fffdf9;--p2:#f7f0e4;--p3:#efe4d0;--ln:#e7dac3;--tx:#4b3e31;--mu:#9a8a76;--am:#b08a4e;--am2:#d8bd8c;--go:#9a7640;--ch:#ecdcbc;--ok:#7f9a6b;--bad:#c06a58;--inf:#7f93a6;--r:16px;--sh:0 1px 2px rgba(120,95,55,.06),0 8px 24px -12px rgba(120,95,55,.18)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:14.5px/1.5 'Jost',system-ui,sans-serif}
+body{background:radial-gradient(1200px 600px at 100% -10%,#f3e6cd 0,transparent 60%),radial-gradient(900px 500px at -10% 110%,#f1e7d6 0,transparent 55%),var(--bg);background-attachment:fixed}
+h1,h2,h3,.kv,.brand{font-family:'Cormorant Garamond',Georgia,serif;letter-spacing:.01em}
+h2{margin:0 0 12px;font-size:26px;font-weight:600}h3{margin:0 0 12px;font-size:20px;font-weight:600;color:var(--go)}
+a{color:var(--go);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--am2)}
+.app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+aside{background:linear-gradient(180deg,#fffdf8,#f8f0e2);border-right:1px solid var(--ln);padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+aside:after{content:"";position:absolute;left:-30px;bottom:-30px;width:230px;height:230px;opacity:.5;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%23c9a86e' stroke-width='1.1'%3E%3Ccircle cx='100' cy='100' r='26'/%3E%3Ccircle cx='100' cy='100' r='38' stroke-dasharray='2 5'/%3E%3Cg stroke-linecap='round'%3E%3Cpath d='M100 52V30M100 148v22M52 100H30M148 100h22M66 66 50 50M134 134l16 16M66 134l-16 16M134 66l16-16'/%3E%3C/g%3E%3Cpath d='M20 190c30-40 60-55 90-60M40 196c10-25 30-40 55-46M110 130c-8 12-20 18-34 18M86 140c-4-12-2-22 6-30M60 160c-2-12 3-22 12-28'/%3E%3C/svg%3E") no-repeat center/contain}
+.brand{font-size:30px;font-weight:600;color:var(--tx);padding:0 12px 4px;line-height:1;font-style:italic}
+.brand em{color:var(--am);font-style:italic}
+.brand small{display:block;font:500 10.5px 'Jost';color:var(--mu);letter-spacing:.16em;text-transform:uppercase;margin-top:8px;font-style:normal;white-space:nowrap}
+.orn{display:flex;align-items:center;gap:8px;color:var(--am2);margin:10px 12px 14px;font-size:11px}.orn:before,.orn:after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--am2),transparent)}
+.nav{display:flex;align-items:center;gap:11px;padding:10px 14px;border-radius:12px;color:var(--mu);cursor:pointer;font-weight:500;user-select:none;position:relative;z-index:1;transition:.15s}
+.nav i{font-style:normal;width:18px;text-align:center;color:var(--am2)}
+.nav:hover{background:rgba(236,220,188,.35);color:var(--tx)}
+.nav.on{background:var(--p1);color:var(--tx);box-shadow:var(--sh)}.nav.on i{color:var(--am)}
+.nav .b{margin-left:auto;background:var(--bad);color:#fff;border-radius:10px;font-size:11px;padding:0 7px;font-weight:600}
+.side-imp{margin-top:auto;position:relative;z-index:1}
+main{padding:28px 36px 70px;min-width:0}
+.top{display:flex;align-items:flex-end;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.top .t{flex:1;min-width:220px}.top h1{margin:0;font-size:40px;line-height:1.05;font-weight:600}.top .sub{color:var(--mu);margin-top:4px}
+.crumb{color:var(--mu);font-size:13px;margin-bottom:6px}
+.btn{background:linear-gradient(135deg,#c9a467,#a57f45);color:#fff;border:0;border-radius:30px;padding:10px 18px;font:500 13.5px 'Jost';letter-spacing:.02em;cursor:pointer;white-space:nowrap;box-shadow:0 4px 14px -6px rgba(165,127,69,.6);transition:.15s}
+.btn:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.btn.ghost{background:var(--p1);color:var(--tx);border:1px solid var(--ln);box-shadow:none}
+.btn.ghost:hover{border-color:var(--am);color:var(--go)}
+.btn.sm{padding:7px 13px;font-size:12.5px}.btn.danger{background:transparent;border:1px solid rgba(192,106,88,.4);color:var(--bad);box-shadow:none}
+.btn.w{width:100%}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.gap{margin-bottom:12px}
+.muted{color:var(--mu)}.small{font-size:12.5px}.r{text-align:right}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--am)}
+.card{background:var(--p1);border:1px solid var(--ln);border-radius:var(--r);padding:18px 20px;min-width:0;box-shadow:var(--sh)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--p1);border:1px solid var(--ln);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden;box-shadow:var(--sh)}
+.kpi:before{content:"";position:absolute;left:16px;right:16px;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--am2),transparent)}
+.kpi span{display:block;color:var(--mu);font-size:10.5px;text-transform:uppercase;letter-spacing:.14em}
+.kpi .kv{font-size:27px;font-weight:600;display:block;margin-top:2px;color:var(--tx)}
+.kpi small{color:var(--mu);font-size:12px}
+.kpi.hl{background:linear-gradient(160deg,#fffaf0,#f6e9cf)}.kpi.hl .kv{color:var(--go)}.kpi.hl:before{background:linear-gradient(90deg,transparent,var(--am),transparent)}
+.kpi.bad .kv{color:var(--bad)}.kpi.bad:before{background:linear-gradient(90deg,transparent,var(--bad),transparent)}.kpi.ok .kv{color:var(--ok)}.kpi.ok:before{background:linear-gradient(90deg,transparent,var(--ok),transparent)}
+.grid2{display:grid;grid-template-columns:2.2fr 1fr;gap:16px;margin-bottom:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.gridq{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+.chart{position:relative;height:250px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+input,select,textarea{background:#fffefb;color:var(--tx);border:1px solid var(--ln);border-radius:10px;padding:8px 11px;font:inherit;min-width:0}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--am);box-shadow:0 0 0 3px rgba(216,189,140,.3)}
+input[type=checkbox]{accent-color:var(--am);width:16px;height:16px}
+textarea{width:100%;min-height:70px;resize:vertical}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mu)}
+label.ck{flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--tx)}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--mu);text-align:left;padding:9px 8px;border-bottom:1px solid var(--ln);font-weight:500;white-space:nowrap}
+.tbl th.s{cursor:pointer}.tbl th.s:hover{color:var(--go)}
+.tbl td{padding:10px 8px;border-bottom:1px solid #f1e8d8;vertical-align:middle}
+.tbl tfoot td{border-bottom:0;border-top:1px solid var(--ln)}
+.tbl tr.c{cursor:pointer}.tbl tr.c:hover td{background:#fbf5ea}
+.tbl .r{text-align:right;white-space:nowrap}
+.tbl input,.tbl select{width:100%;padding:6px 8px}
+.tbl input.n{text-align:right}
+.tw{overflow-x:auto}
+.chip{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11.5px;font-weight:500;white-space:nowrap;border:1px solid}
+.c-demande{color:#8d8170;border-color:#ddd2c1;background:#faf6ef}.c-recu{color:#5f7488;border-color:#cfd8e0;background:#f3f6f8}.c-accepte{color:var(--go);border-color:var(--am2);background:#fbf3e3}
+.c-refuse{color:var(--bad);border-color:#e9c7bf;background:#fbf1ee}.c-facture{color:#a0703a;border-color:#e5c9a0;background:#fcf2e2}.c-paye{color:#5f7d4f;border-color:#cddcc2;background:#f2f6ee}
+.c-reflexion{color:#8d8170;border-color:#ddd2c1;background:#faf6ef}.c-encours{color:var(--go);border-color:var(--am2);background:#fbf3e3}.c-termine{color:#5f7d4f;border-color:#cddcc2;background:#f2f6ee}
+.tag{font-size:10.5px;color:var(--mu);text-transform:uppercase;letter-spacing:.16em}
+.bar{height:6px;background:var(--p3);border-radius:6px;overflow:hidden;margin:8px 0}
+.bar>div{height:100%;background:linear-gradient(90deg,var(--ch),var(--am));border-radius:6px}
+.bar.over>div{background:linear-gradient(90deg,#e2a99c,var(--bad))}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.pcard{background:var(--p1);border:1px solid var(--ln);border-radius:var(--r);padding:18px;cursor:pointer;transition:.2s;box-shadow:var(--sh)}
+.pcard:hover{border-color:var(--am2);transform:translateY(-3px);box-shadow:0 14px 30px -14px rgba(120,95,55,.35)}
+.pcard h3{color:var(--tx);font-size:25px;margin:8px 0 2px}.pcard .row{justify-content:space-between}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}
+.mini span{display:block;font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.1em}.mini b{font-size:13.5px;font-weight:500}
+.al{display:flex;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;align-items:flex-start}
+.al:hover{background:#fbf5ea}.al i{font-style:normal;color:var(--am)}.al b{display:block;font-weight:500;font-size:13px}.al small{color:var(--mu)}
+.al.bad b{color:var(--bad)}.al.warn b{color:var(--go)}.al.info b{color:#5f7488}.al.mut b{color:var(--mu)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--ln);margin:8px 0 18px;overflow-x:auto}
+.tab{padding:10px 15px;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;white-space:nowrap;font-weight:500}
+.tab:hover{color:var(--tx)}.tab.on{color:var(--go);border-color:var(--am)}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.step{padding:7px 15px;border-radius:20px;border:1px solid var(--ln);cursor:pointer;font-size:13px;color:var(--mu);background:var(--p1)}
+.step:hover{border-color:var(--am);color:var(--tx)}.step.on{background:linear-gradient(135deg,#c9a467,#a57f45);color:#fff;border-color:transparent}
+.empty{text-align:center;padding:44px 20px;color:var(--mu)}
+.empty h2{color:var(--tx);font-size:34px;font-style:italic}
+.dl{display:grid;grid-template-columns:130px 1fr;gap:8px 12px;font-size:13.5px}.dl dt{color:var(--mu)}.dl dd{margin:0}
+.tot{margin-left:auto;width:min(320px,100%);margin-top:10px}.tot div{display:flex;justify-content:space-between;padding:4px 0}.tot .g{border-top:1px solid var(--ln);margin-top:4px;padding-top:8px;font:600 22px 'Cormorant Garamond';color:var(--go)}
+.stars{color:var(--am);letter-spacing:1px}
+.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.doc{background:var(--p1);border:1px solid var(--ln);border-radius:12px;overflow:hidden;cursor:pointer;position:relative;box-shadow:var(--sh)}
+.doc img{width:100%;height:110px;object-fit:cover;display:block;background:var(--p3)}
+.doc .ph{height:110px;display:grid;place-items:center;font-size:34px;background:var(--p2)}
+.doc div.m{padding:7px 9px;font-size:12px}.doc .x{position:absolute;top:5px;right:5px;background:rgba(255,253,249,.85)}
+.x{background:transparent;border:0;color:var(--mu);border-radius:6px;cursor:pointer;padding:3px 7px}.x:hover{color:var(--bad)}
+.best{background:#fbf3e3}
+.note{background:#f3f6f8;border:1px solid #d9e1e8;color:#56697b;padding:10px 13px;border-radius:12px;font-size:13px;margin-bottom:12px}
+.note.w{background:#fcf3e3;border-color:#ecd7b0;color:#8a6430}
+#modal{position:fixed;inset:0;background:rgba(75,62,49,.28);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:50;overflow:auto;padding:30px 14px}
+#modal.on{display:flex}
+#modal .box{background:var(--p1);border:1px solid var(--ln);border-radius:20px;padding:26px;width:min(640px,100%);position:relative;box-shadow:0 30px 60px -20px rgba(75,62,49,.35)}
+#modal .box.wide{width:min(1280px,100%)}
+#modal .cl{position:absolute;top:12px;right:16px;background:none;border:0;color:var(--mu);font-size:24px;cursor:pointer}
+.qf{display:grid;grid-template-columns:1fr 1.25fr;gap:20px}
+.qf-prev{background:var(--p2);border:1px solid var(--ln);border-radius:14px;min-height:400px;height:78vh;position:sticky;top:0;overflow:hidden}
+.qf-prev iframe,.qf-prev img{width:100%;height:100%;border:0;object-fit:contain;background:#fff}
+.qf.nofile{grid-template-columns:1fr}.qf.nofile .qf-prev{display:none}
+fieldset{border:1px solid var(--ln);border-radius:14px;padding:14px;margin:0 0 12px;background:#fffefb}
+legend{color:var(--go);font-family:'Cormorant Garamond';font-weight:600;font-size:18px;padding:0 6px;font-style:italic}
+details summary{cursor:pointer;color:var(--mu);font-size:13px;margin:4px 0 8px}
+.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;position:sticky;bottom:-26px;background:var(--p1);padding:12px 0 4px}
+.drop{border:1.5px dashed var(--am2);border-radius:18px;padding:46px 20px;text-align:center;cursor:pointer;color:var(--mu);transition:.15s;background:#fffcf6}
+.drop:hover,.drop.ov{border-color:var(--am);color:var(--tx);background:#fbf3e3}
+.drop b{display:block;font:600 24px 'Cormorant Garamond';font-style:italic;color:var(--tx);margin:8px 0 4px}
+.drop input{display:none}
+#dlg{position:fixed;inset:0;background:rgba(75,62,49,.32);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:85;padding:20px}#dlg.on{display:flex}#dlg .dbox{background:var(--p1);border:1px solid var(--ln);border-radius:20px;padding:24px 26px;width:min(420px,100%);box-shadow:0 30px 60px -20px rgba(75,62,49,.4)}#dlg p{margin:0 0 16px;font-size:15px}#dlg input{width:100%;margin-bottom:16px}
+.sync{display:flex;align-items:center;gap:7px;margin:-6px 14px 12px;font-size:11.5px;color:var(--mu);position:relative;z-index:1}.sync:empty{display:none}.sync .dot{width:7px;height:7px;border-radius:50%;background:var(--mu);flex:none}.sync.ok .dot{background:var(--ok)}.sync.pend .dot{background:var(--am);animation:pl 1s infinite alternate}.sync.err .dot{background:var(--bad)}@keyframes pl{to{opacity:.3}}
+#gate{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;padding:20px;background:radial-gradient(900px 500px at 85% 0,#f3e4c6 0,transparent 60%),radial-gradient(700px 500px at 0 100%,#efe2cc 0,transparent 55%),var(--bg)}#gate.on{display:flex}
+#gate .gbox{background:var(--p1);border:1px solid var(--ln);border-radius:26px;padding:44px 46px 34px;text-align:center;width:min(460px,100%);box-shadow:0 30px 70px -30px rgba(75,62,49,.45)}
+#gate .brand{font-size:44px;padding:0}#gate p{color:var(--mu);margin:0 0 18px}#gate .btn{padding:13px 26px;font-size:15px}#gate .gmsg{color:var(--bad);font-size:13px;margin:14px 0 0;min-height:1em}
+#recon{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:96;display:none;align-items:center;gap:12px;background:var(--p1);border:1px solid var(--am2);border-radius:30px;padding:8px 10px 8px 18px;box-shadow:var(--sh);font-size:13.5px}#recon.on{display:flex}
+#busy{position:fixed;inset:0;background:rgba(248,243,234,.85);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:80;flex-direction:column;gap:14px;color:var(--tx)}
+#busy.on{display:flex}
+.spin{width:46px;height:46px;border:2px solid var(--ch);border-top-color:var(--am);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:90}
+.toast{background:var(--p1);border:1px solid var(--ln);border-left:3px solid var(--ok);padding:11px 15px;border-radius:12px;max-width:360px;font-size:13px;animation:tin .2s;box-shadow:var(--sh)}
+.toast.bad{border-left-color:var(--bad)}
+@keyframes tin{from{transform:translateY(8px);opacity:0}}
+#dropov{position:fixed;inset:0;background:rgba(251,243,227,.75);border:2px dashed var(--am);z-index:70;display:none;align-items:center;justify-content:center;font:600 34px 'Cormorant Garamond';font-style:italic;color:var(--go);pointer-events:none}
+#dropov.on{display:flex}
+::selection{background:var(--ch)}
+@media (max-width:1100px){.grid2,.gridq,.qf{grid-template-columns:1fr}.grid3{grid-template-columns:1fr 1fr}.qf-prev{height:50vh;position:static}}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap}aside:after{display:none}.brand{width:100%}.orn{width:100%}.side-imp{margin:0}main{padding:16px}.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">Devis <em>&amp;</em> Projets<small>Budget · suivi · décisions</small></div><div class="orn">✦</div><div class="sync" id="sync"></div>
+    <div class="nav" data-v="global" onclick="go('global')"><i>◎</i>Vue globale<span class="b" id="nb-al"></span></div>
+    <div class="nav" data-v="projets" onclick="go('projets')"><i>▦</i>Projets</div>
+    <div class="nav" data-v="devis" onclick="go('devis')"><i>▤</i>Devis</div>
+    <div class="nav" data-v="fournisseurs" onclick="go('fournisseurs')"><i>☎</i>Fournisseurs</div>
+    <div class="nav" data-v="echeancier" onclick="go('echeancier')"><i>◷</i>Échéancier</div>
+    <div class="nav" data-v="prix" onclick="go('prix')"><i>€</i>Prix par ligne</div>
+    <div class="nav" data-v="params" onclick="go('params')"><i>⚙</i>Paramètres</div>
+    <div class="side-imp"><button class="btn w" onclick="openImport()">⬆ Importer un devis</button></div>
+  </aside>
+  <main id="main"></main>
+</div>
+<div id="modal" onmousedown="if(event.target===this)closeModal()"><div class="box"></div></div>
+<div id="gate"><div class="gbox"><div class="brand">Devis <em>&amp;</em> Projets</div><div class="orn">✦</div><p>Tes devis, projets et paiements,<br>sur tous tes ordinateurs.</p><button class="btn" onclick="cloudLogin()">Se connecter avec Google</button><div class="gmsg" id="gate-msg"></div><p class="small" style="margin:18px 0 0">Données rangées dans ton Google Drive,<br>dossier « Devis &amp; Projets ».</p></div></div>
+<div id="recon"><span>Ta session Google a expiré.</span><button class="btn sm" onclick="reconnect()">Se reconnecter</button></div>
+<div id="dlg"><div class="dbox"></div></div>
+<div id="busy"><div class="spin"></div><div id="busy-t">Analyse…</div></div>
+<div id="toasts"></div>
+<div id="dropov">Dépose tes devis pour les importer</div>
+
+<script>
+/* =========================================================
+   Devis & Projets — appli locale (IndexedDB), fichier unique
+   ========================================================= */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-5);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const r2=n=>Math.round((+n||0)*100)/100;
+function num(v){if(typeof v==='number')return isNaN(v)?0:v;if(v==null||v==='')return 0;let s=String(v).replace(/[\s\u00a0\u202f€]/g,'').replace(/EUR/i,'');
+  if(s.includes(',')&&s.includes('.')){if(s.lastIndexOf(',')>s.lastIndexOf('.'))s=s.replace(/\./g,'').replace(',','.');else s=s.replace(/,/g,'')}
+  else if(s.includes(','))s=s.replace(',','.');
+  else if(/^\-?\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');
+  const n=parseFloat(s);return isNaN(n)?0:n}
+const eur=n=>r2(n).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+const keur=n=>Math.abs(n)>=1000?(r2(n/1000)).toLocaleString('fr-FR',{maximumFractionDigits:1})+' k€':Math.round(n)+' €';
+const fN=n=>r2(n).toFixed(2).replace('.',',');
+const pct=x=>(x*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' %';
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const today=()=>iso(new Date());
+const addDays=(d,n)=>{const x=new Date((d||today())+'T00:00:00');x.setDate(x.getDate()+n);return iso(x)};
+const fmtD=d=>d?new Date(d+'T00:00:00').toLocaleDateString('fr-FR'):'—';
+const daysTo=d=>d?Math.round((new Date(d+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\b(sarl|sas|sasu|eurl|sa|ei|ets|entreprise|societe)\b/g,'').replace(/[^a-z0-9]/g,'');
+const close=(a,b)=>Math.abs(a-b)<=Math.max(0.05,Math.abs(b)*0.012);
+const stars=n=>`<span class="stars">${'★'.repeat(n||0)}${'☆'.repeat(5-(n||0))}</span>`;
+
+/* ---------- Stockage IndexedDB ---------- */
+const DB={db:null,
+  open(){return new Promise((res,rej)=>{const r=indexedDB.open('devis-projets',1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('kv');d.createObjectStore('files')};r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>rej(r.error)})},
+  tx(st,mode,fn){return new Promise((res,rej)=>{const t=this.db.transaction(st,mode);const q=fn(t.objectStore(st));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)})},
+  get(k){return this.tx('kv','readonly',s=>s.get(k))},
+  set(k,v){return this.tx('kv','readwrite',s=>s.put(v,k))},
+  putFile(id,f){return this.tx('files','readwrite',s=>s.put(f,id))},
+  getFile(id){return this.tx('files','readonly',s=>s.get(id))},
+  delFile(id){return id?this.tx('files','readwrite',s=>s.delete(id)):Promise.resolve()},
+  clearFiles(){return this.tx('files','readwrite',s=>s.clear())},
+  allFiles(){return new Promise(res=>{const out=[];const c=this.db.transaction('files').objectStore('files').openCursor();c.onsuccess=()=>{const k=c.result;if(k){out.push([k.key,k.value]);k.continue()}else res(out)}})}
+};
+
+/* ---------- État ---------- */
+/* ---------- Fichiers : copie locale + Google Drive en ligne ---------- */
+const _put=DB.putFile.bind(DB),_get=DB.getFile.bind(DB),_del=DB.delFile.bind(DB),_clr=DB.clearFiles.bind(DB),_all=DB.allFiles.bind(DB);
+DB.putFile=async(id,f)=>{await _put(id,f);if(!CLOUD.on||!G.filesId)return;const wasBusy=$('#busy').classList.contains('on');if(!wasBusy)busy('Envoi du fichier vers Google Drive…');
+  try{const r=await dCreate(`${id}__${f.name||'fichier'}`,G.filesId,f.blob);S.drive=S.drive||{};S.drive[id]={d:r.id,n:f.name||'fichier',t:f.type||''}}
+  catch(e){toast('Envoi vers Drive impossible : '+e.message,'bad')}finally{if(!wasBusy)busy(false)}};
+DB.getFile=async id=>{if(!id)return null;let f=await _get(id);if(f||!CLOUD.on)return f;const m=S.drive?.[id];if(!m)return null;
+  try{const r=await dGet(m.d);f={name:m.n,type:m.t,blob:new Blob([await r.blob()],{type:m.t})};await _put(id,f);return f}catch(e){toast('Fichier indisponible sur Drive : '+e.message,'bad');return null}};
+DB.delFile=async id=>{if(!id)return;await _del(id);if(CLOUD.on&&S.drive?.[id]){try{await dTrash(S.drive[id].d)}catch(e){}delete S.drive[id]}};
+DB.clearFiles=async()=>{await _clr();if(CLOUD.on&&S.drive){for(const k of Object.keys(S.drive)){try{await dTrash(S.drive[k].d)}catch(e){}}S.drive={}}};
+DB.allFiles=async()=>{if(!CLOUD.on)return _all();const out=[];for(const k of Object.keys(S.drive||{})){const f=await DB.getFile(k);if(f)out.push([k,f])}return out};
+const DEF={projects:[],quotes:[],suppliers:[],settings:{monNom:'Grazioso',apiKey:'',model:'claude-sonnet-5-5',useAI:true,ocr:true,marge:10,alerteValidite:15,relance:10}};
+let S=null,R={v:'global',id:null,tab:'devis'},CH=[],POST=[],QF=null;
+const GF={per:'tout',d1:'',d2:'',st:'',cat:'',sort:'engage',dir:-1};
+const DF={st:'',pj:'',q:''};
+let PQ='',CMPX=new Set(),CMPW={prix:40,delai:20,avis:20,ressenti:20};
+const CATS=['Travaux','Énergie','Déco / Ameublement','Extérieur / Jardin','Véhicule','Bébé / Famille','Mariage / Événement','Équipement / Électroménager','Autre'];
+const PSTAT={reflexion:'En réflexion',encours:'En cours',termine:'Terminé'};
+const QSTAT={demande:'Demandé',recu:'Reçu',accepte:'Accepté',refuse:'Refusé',facture:'Facturé',paye:'Payé'};
+const ENG=['accepte','facture','paye'];
+const PAL=['#b08a4e','#e2cc9f','#8c7458','#a7b493','#cf9f8a','#c2a477','#8fa0ae','#e8d9bd','#7f6a4f'];
+async function save(){await DB.set('state',S);if(CLOUD.on&&G.dataId)cloudQueue()}
+const proj=id=>S.projects.find(p=>p.id===id), sup=id=>S.suppliers.find(s=>s.id===id), quo=id=>S.quotes.find(q=>q.id===id);
+
+/* ---------- Calculs ---------- */
+const qEngage=q=>ENG.includes(q.statut)?(q.facture&&num(q.facture.montant)?num(q.facture.montant):num(q.ttc)):0;
+function payments(q){if(!ENG.includes(q.statut))return[];const E=q.echeances||[];
+  if(E.length)return E.filter(e=>e.paye).map(e=>({date:e.datePaiement||e.date||q.date,montant:num(e.montant)}));
+  if(q.statut==='paye')return[{date:q.datePaye||q.facture?.date||q.date,montant:qEngage(q)}];return[]}
+function pStats(p,rg){const qs=S.quotes.filter(q=>q.projetId===p.id);const inR=d=>!rg||(d&&d>=rg[0]&&d<=rg[1]);
+  const engage=qs.filter(q=>inR(q.date)).reduce((a,q)=>a+qEngage(q),0);
+  const paye=qs.reduce((a,q)=>a+payments(q).filter(x=>inR(x.date)).reduce((b,x)=>b+x.montant,0),0);
+  const budget=num(p.budget),marge=num(p.marge),budgetMarge=budget*(1+marge/100);
+  const aidesTot=(p.aides||[]).reduce((a,x)=>a+num(x.montant),0),aidesRecues=(p.aides||[]).filter(x=>x.statut==='recue').reduce((a,x)=>a+num(x.montant),0);
+  return{qs,engage,paye,reste:Math.max(0,engage-paye),budget,budgetMarge,aidesTot,aidesRecues,rac:engage-aidesTot,ecart:engage-budget,
+    enAttente:qs.filter(q=>q.statut==='recu').length,demandes:qs.filter(q=>q.statut==='demande').length}}
+function range(){const y=new Date().getFullYear();switch(GF.per){case'annee':return[`${y}-01-01`,`${y}-12-31`];case'prec':return[`${y-1}-01-01`,`${y-1}-12-31`];
+  case'12m':return[addDays(today(),-365),today()];case'perso':return[GF.d1||'0000-01-01',GF.d2||'9999-12-31'];default:return null}}
+function allEch(qs){const out=[];(qs||S.quotes).forEach(q=>{if(!ENG.includes(q.statut))return;(q.echeances||[]).forEach(e=>out.push({q,e}))});return out.sort((a,b)=>(a.e.date||'9').localeCompare(b.e.date||'9'))}
+function eType(e){return e.type||(/solde/i.test(e.libelle||'')?'solde':/acompte|arrhes/i.test(e.libelle||'')?'acompte':'autre')}
+function accStats(qs){const o={nAc:0,nAcP:0,ac:0,acP:0,so:0,soP:0,au:0,auP:0};qs.forEach(q=>(q.echeances||[]).forEach(e=>{const t=eType(e),m=num(e.montant);
+  if(t==='acompte'){o.nAc++;o.ac+=m;if(e.paye){o.nAcP++;o.acP+=m}}else if(t==='solde'){o.so+=m;if(e.paye)o.soP+=m}else{o.au+=m;if(e.paye)o.auP+=m}}));return o}
+function accBadges(o){if(!o.nAc&&!o.so&&!o.au)return'';return`<div class="row" style="margin-bottom:10px">${o.nAc?`<span class="chip c-paye">Acomptes versés : ${o.nAcP}/${o.nAc} · ${eur(o.acP)}</span>${o.ac-o.acP>0.005?`<span class="chip c-facture">Acomptes à verser : ${eur(o.ac-o.acP)}</span>`:''}`:''}${o.so?`<span class="chip ${o.so-o.soP>0.005?'c-accepte':'c-paye'}">Solde${o.so-o.soP>0.005?' à verser : '+eur(o.so-o.soP):' versé : '+eur(o.soP)}</span>`:''}${o.au-o.auP>0.005?`<span class="chip c-recu">Autres : ${eur(o.au-o.auP)}</span>`:''}</div>`}
+function alerts(){const A=[],st=S.settings;
+  S.quotes.forEach(q=>{const p=proj(q.projetId),f=sup(q.fournisseurId),nm=`${f?.nom||'Fournisseur ?'} · ${p?.nom||'Sans projet'}`;
+    if(q.statut==='demande'&&q.date){const d=-daysTo(q.date);if(d>=st.relance)A.push({lvl:'warn',ic:'☎',t:`À relancer : pas de devis depuis ${d} j`,s:nm,q:q.id})}
+    if(q.statut==='recu'){
+      if(q.validite){const d=daysTo(q.validite);if(d<0)A.push({lvl:'mut',ic:'⌛',t:`Devis expiré depuis ${-d} j`,s:nm,q:q.id});else if(d<=st.alerteValidite)A.push({lvl:'warn',ic:'⏳',t:`Devis valable encore ${d} j — à décider`,s:nm,q:q.id})}
+      else if(q.date&&-daysTo(q.date)>=st.relance)A.push({lvl:'info',ic:'?',t:`En attente de ta décision depuis ${-daysTo(q.date)} j`,s:nm,q:q.id})}
+    if(ENG.includes(q.statut))(q.echeances||[]).forEach(e=>{if(!e.paye&&e.date){const d=daysTo(e.date);
+      if(d<0)A.push({lvl:'bad',ic:'€',t:`Paiement en retard : ${eur(e.montant)}`,s:`${e.libelle||'Échéance'} · ${nm}`,q:q.id});
+      else if(d<=30)A.push({lvl:'warn',ic:'€',t:`Paiement ${d===0?"aujourd'hui":'dans '+d+' j'} : ${eur(e.montant)}`,s:`${e.libelle||'Échéance'} · ${nm}`,q:q.id})}});
+    if(q.facture&&num(q.facture.montant)&&num(q.ttc)&&!close(num(q.facture.montant),num(q.ttc))){const df=num(q.facture.montant)-num(q.ttc);A.push({lvl:df>0?'bad':'info',ic:'≠',t:`Facture ${df>0?'+':''}${eur(df)} vs devis`,s:nm,q:q.id})}
+    if(q.garantie?.fin){const d=daysTo(q.garantie.fin);if(d>=0&&d<=90)A.push({lvl:'info',ic:'⛨',t:`Garantie ${q.garantie.type||''} se termine dans ${d} j`,s:nm,q:q.id})}});
+  S.projects.forEach(p=>{const s=pStats(p);if(s.budget&&s.engage>s.budget)A.push({lvl:s.engage>s.budgetMarge?'bad':'warn',ic:'▲',t:`Budget dépassé de ${eur(s.engage-s.budget)}${s.engage>s.budgetMarge?' (marge comprise)':' (dans la marge)'}`,s:p.nom,p:p.id})});
+  const o={bad:0,warn:1,info:2,mut:3};return A.sort((a,b)=>o[a.lvl]-o[b.lvl])}
+
+
+/* ---------- Dialogues intégrés (remplacent confirm/prompt du navigateur) ---------- */
+function ask(msg,o){o=o||{};return new Promise(res=>{const d=$('#dlg');const danger=/supprim|effac|retir|restaur|remplac/i.test(msg);
+  d.querySelector('.dbox').innerHTML=`<h3 style="margin-bottom:8px">${danger?'Confirmer':'Une question'}</h3><p>${esc(msg)}</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-v="0">${o.no||'Annuler'}</button><button class="btn ${danger?'danger':''}" data-v="1" style="${danger?'background:var(--bad);color:#fff;border-color:var(--bad)':''}">${o.yes||(danger?'Oui, confirmer':'Oui')}</button></div>`;
+  d.classList.add('on');const done=v=>{d.classList.remove('on');document.removeEventListener('keydown',kd);res(v)};
+  const kd=e=>{if(e.key==='Escape')done(false);if(e.key==='Enter')done(true)};document.addEventListener('keydown',kd);
+  d.querySelectorAll('button').forEach(b=>b.onclick=()=>done(b.dataset.v==='1'));d.querySelector('[data-v="1"]').focus()})}
+function askVal(msg,def){return new Promise(res=>{const d=$('#dlg');
+  d.querySelector('.dbox').innerHTML=`<h3 style="margin-bottom:8px">Une question</h3><p>${esc(msg)}</p><input id="dlg-in" value="${esc(def??'')}"><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-v="0">Annuler</button><button class="btn" data-v="1">Valider</button></div>`;
+  d.classList.add('on');const inp=$('#dlg-in');inp.focus();inp.select();const done=v=>{d.classList.remove('on');res(v)};
+  inp.onkeydown=e=>{if(e.key==='Enter')done(inp.value);if(e.key==='Escape')done(null)};
+  d.querySelectorAll('button').forEach(b=>b.onclick=()=>done(b.dataset.v==='1'?inp.value:null))})}
+/* ---------- UI helpers ---------- */
+function go(v,id,tab){R={v,id:id||null,tab:tab||(v===R.v?R.tab:'devis')};render();window.scrollTo(0,0)}
+function render(){CH.forEach(c=>{try{c.destroy()}catch(e){}});CH=[];POST=[];
+  const n=alerts().filter(a=>a.lvl==='bad'||a.lvl==='warn').length;const b=$('#nb-al');b.textContent=n||'';b.style.display=n?'':'none';
+  const nv={projet:'projets',devis1:'devis'}[R.v]||R.v;$$('.nav').forEach(x=>x.classList.toggle('on',x.dataset.v===nv));
+  const V={global:vGlobal,projets:vProjets,projet:vProjet,devis:vDevis,devis1:vDevis1,fournisseurs:vFourn,echeancier:vEch,prix:vPrix,params:vParams}[R.v]||vGlobal;
+  $('#main').innerHTML=V();POST.forEach(f=>f())}
+function hdr(t,sub,act){return`<div class="top"><div class="t"><h1>${t}</h1>${sub?`<div class="sub">${sub}</div>`:''}</div><div class="row">${act??`<button class="btn" onclick="openImport()">⬆ Importer un devis</button>`}</div></div>`}
+function kpi(l,v,cls,sub){return`<div class="kpi ${cls||''}"><span>${l}</span><b class="kv">${eur(v)}</b>${sub?`<small>${sub}</small>`:''}</div>`}
+function bar(v,max){const p=max?Math.min(100,v/max*100):0;return`<div class="bar ${max&&v>max?'over':''}" title="${max?pct(v/max):''}"><div style="width:${max?p:0}%"></div></div>`}
+const chipQ=s=>`<span class="chip c-${s}">${QSTAT[s]||s}</span>`, chipP=s=>`<span class="chip c-${s}">${PSTAT[s]||s}</span>`;
+function toast(m,c){const t=document.createElement('div');t.className='toast '+(c||'');t.textContent=m;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),4200)}
+function busy(m){const b=$('#busy');if(m===false){b.classList.remove('on');return}$('#busy-t').textContent=m;b.classList.add('on')}
+function openModal(h,cls){const b=$('#modal .box');b.className='box '+(cls||'');b.innerHTML=`<button class="cl" onclick="closeModal()">×</button>`+h;$('#modal').classList.add('on')}
+function closeModal(){if(QF){const r=QF.res;if(QF.url)URL.revokeObjectURL(QF.url);QF=null;r(null)}$('#modal').classList.remove('on');$('#modal .box').innerHTML=''}
+function mk(id,cfg){const el=document.getElementById(id);if(el&&window.Chart){cfg.options=Object.assign({maintainAspectRatio:false,responsive:true},cfg.options||{});CH.push(new Chart(el,cfg))}}
+const projOpts=(sel,blank)=>(blank?`<option value="">${blank}</option>`:'')+S.projects.map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(p.nom)}</option>`).join('');
+async function openFile(fid){const f=await DB.getFile(fid);if(!f)return toast('Fichier introuvable','bad');window.open(URL.createObjectURL(f.blob),'_blank')}
+function download(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function alertList(al,max){if(!al.length)return`<div class="muted small" style="padding:10px">Rien à signaler 👌</div>`;
+  return al.slice(0,max||50).map(a=>`<div class="al ${a.lvl}" onclick="${a.q?`go('devis1','${a.q}')`:`go('projet','${a.p}','devis')`}"><i>${a.ic}</i><div><b>${esc(a.t)}</b><small>${esc(a.s)}</small></div></div>`).join('')}
+
+/* =========================================================
+   VUE GLOBALE
+   ========================================================= */
+function vGlobal(){
+  if(!S.projects.length)return hdr('Vue globale','État cumulé de tous tes projets')+`<div class="card empty"><h2>Bienvenue 👋</h2><p>Crée un premier projet, ou importe directement un devis : l'appli lit le document, remplit la fiche et la range dans un projet.</p><div class="row" style="justify-content:center;margin-top:14px"><button class="btn" onclick="openImport()">⬆ Importer un devis</button><button class="btn ghost" onclick="projectForm()">+ Nouveau projet</button></div><p class="small" style="margin-top:18px">Astuce : tu peux aussi glisser-déposer des PDF ou photos n'importe où dans la fenêtre.</p></div>`;
+  const rg=range();const ps=S.projects.map(p=>({p,s:pStats(p,rg)}));
+  const T=ps.reduce((a,{s})=>{['budget','engage','paye','reste','aidesTot','aidesRecues','rac'].forEach(k=>a[k]+=s[k]);return a},{budget:0,engage:0,paye:0,reste:0,aidesTot:0,aidesRecues:0,rac:0});
+  const ec=T.engage-T.budget;
+  let rows=ps.filter(({p})=>(!GF.st||p.statut===GF.st)&&(!GF.cat||p.categorie===GF.cat));
+  rows.sort((a,b)=>{const k=GF.sort;const va=k==='nom'?a.p.nom.toLowerCase():k==='statut'?a.p.statut:a.s[k],vb=k==='nom'?b.p.nom.toLowerCase():k==='statut'?b.p.statut:b.s[k];return(va>vb?1:va<vb?-1:0)*GF.dir});
+  const th=(k,l,r)=>`<th class="s ${r?'r':''}" onclick="sortBy('${k}')">${l}${GF.sort===k?(GF.dir>0?' ▲':' ▼'):''}</th>`;
+  POST.push(()=>chartsGlobal(ps,rg));
+  const pend=S.quotes.filter(q=>q.statut==='recu').length, dem=S.quotes.filter(q=>q.statut==='demande').length;
+  const next30=allEch().filter(x=>!x.e.paye&&x.e.date&&daysTo(x.e.date)>=0&&daysTo(x.e.date)<=30).reduce((a,x)=>a+num(x.e.montant),0);
+  return hdr('Vue globale',`${S.projects.length} projet(s) · ${S.quotes.length} devis · ${pend} à décider · ${dem} demandé(s) en attente`)+`
+  <div class="filters">
+    <select onchange="GF.per=this.value;render()">${[['tout','Toute la période'],['annee','Cette année'],['prec','Année précédente'],['12m','12 derniers mois'],['perso','Période personnalisée']].map(([v,l])=>`<option value="${v}" ${GF.per===v?'selected':''}>${l}</option>`).join('')}</select>
+    ${GF.per==='perso'?`<input type="date" value="${GF.d1}" onchange="GF.d1=this.value;render()"><span class="muted">→</span><input type="date" value="${GF.d2}" onchange="GF.d2=this.value;render()">`:''}
+    <select onchange="GF.st=this.value;render()"><option value="">Tous statuts</option>${Object.entries(PSTAT).map(([k,v])=>`<option value="${k}" ${GF.st===k?'selected':''}>${v}</option>`).join('')}</select>
+    <select onchange="GF.cat=this.value;render()"><option value="">Toutes catégories</option>${CATS.map(c=>`<option ${GF.cat===c?'selected':''}>${c}</option>`).join('')}</select>
+    <span class="muted small">${rg?'La période filtre l\'engagé (date du devis) et le payé (date de paiement).':''}</span>
+  </div>
+  <div class="kpis">
+    ${kpi('Budget prévu',T.budget)}
+    ${kpi('Engagé',T.engage,'hl',T.budget?pct(T.engage/T.budget)+' du budget':'devis acceptés')}
+    ${kpi('Payé',T.paye,'',T.engage?pct(T.paye/T.engage)+' de l\'engagé':'')}
+    ${kpi('Reste à payer',T.reste,'',next30?eur(next30)+' sous 30 j':'')}
+    ${kpi('Aides attendues',T.aidesTot,'',T.aidesRecues?eur(T.aidesRecues)+' reçues':'')}
+    ${kpi('Reste à charge',T.rac,'','engagé − aides')}
+    ${kpi('Écart au budget',ec,T.budget?(ec>0?'bad':'ok'):'',T.budget?(ec>0?'dépassement ':'sous le budget ')+pct(Math.abs(ec)/T.budget):'')}
+  </div>
+  <div class="grid2">
+    <section class="card"><h3>Projets</h3><div class="tw"><table class="tbl"><thead><tr>${th('nom','Projet')}${th('statut','Statut')}${th('budget','Budget',1)}${th('engage','Engagé',1)}${th('paye','Payé',1)}${th('reste','Reste',1)}${th('ecart','Écart',1)}<th style="width:110px">Avancement</th></tr></thead><tbody>
+    ${rows.map(({p,s})=>`<tr class="c" onclick="go('projet','${p.id}','devis')"><td><b>${esc(p.nom)}</b><div class="muted small">${esc(p.categorie)}</div></td><td>${chipP(p.statut)}</td><td class="r">${eur(s.budget)}</td><td class="r">${eur(s.engage)}</td><td class="r">${eur(s.paye)}</td><td class="r">${eur(s.reste)}</td><td class="r ${s.budget?(s.ecart>0?'bad':'ok'):'muted'}">${s.budget?(s.ecart>0?'+':'')+eur(s.ecart):'—'}</td><td>${bar(s.engage,s.budget)}</td></tr>`).join('')||`<tr><td colspan="8" class="muted">Aucun projet pour ce filtre.</td></tr>`}
+    </tbody><tfoot><tr><td><b>Total</b></td><td></td><td class="r"><b>${eur(rows.reduce((a,x)=>a+x.s.budget,0))}</b></td><td class="r"><b>${eur(rows.reduce((a,x)=>a+x.s.engage,0))}</b></td><td class="r"><b>${eur(rows.reduce((a,x)=>a+x.s.paye,0))}</b></td><td class="r"><b>${eur(rows.reduce((a,x)=>a+x.s.reste,0))}</b></td><td></td><td></td></tr></tfoot></table></div></section>
+    <section class="card"><h3>À surveiller</h3>${alertList(alerts(),12)}</section>
+  </div>
+  <div class="grid3">
+    <section class="card"><h3>Répartition par catégorie</h3><div class="chart"><canvas id="ch-cat"></canvas></div></section>
+    <section class="card"><h3>Dépenses cumulées</h3><div class="chart"><canvas id="ch-cum"></canvas></div></section>
+    <section class="card"><h3>Prévu · engagé · payé</h3><div class="chart"><canvas id="ch-bar"></canvas></div></section>
+  </div>`}
+function sortBy(k){if(GF.sort===k)GF.dir*=-1;else{GF.sort=k;GF.dir=(k==='nom'||k==='statut')?1:-1}render()}
+function chartsGlobal(ps,rg){if(!window.Chart){$$('.chart').forEach(c=>c.innerHTML='<div class="muted small">Graphiques indisponibles hors connexion.</div>');return}
+  const inR=d=>!rg||(d&&d>=rg[0]&&d<=rg[1]);
+  const bc={};ps.forEach(({p,s})=>{const v=s.engage||0;if(v>0)bc[p.categorie]=(bc[p.categorie]||0)+v});
+  const cl=Object.keys(bc);
+  if(cl.length)mk('ch-cat',{type:'doughnut',data:{labels:cl,datasets:[{data:cl.map(k=>r2(bc[k])),backgroundColor:PAL,borderColor:'#fffdf9',borderWidth:3}]},options:{cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.label} : ${eur(c.raw)}`}}}}});
+  else $('#ch-cat').parentNode.innerHTML='<div class="muted small">Aucun montant engagé pour l\'instant.</div>';
+  const ev=[];S.quotes.forEach(q=>{payments(q).forEach(x=>{if(inR(x.date)&&x.date)ev.push({m:x.date.slice(0,7),p:x.montant,e:0})});if(ENG.includes(q.statut)&&q.date&&inR(q.date))ev.push({m:q.date.slice(0,7),e:qEngage(q),p:0})});
+  const ms=[...new Set(ev.map(x=>x.m))].sort();let ce=0,cp=0;const de=[],dp=[];
+  ms.forEach(m=>{ev.filter(x=>x.m===m).forEach(x=>{ce+=x.e;cp+=x.p});de.push(r2(ce));dp.push(r2(cp))});
+  const ml=m=>new Date(m+'-01T00:00:00').toLocaleDateString('fr-FR',{month:'short',year:'2-digit'});
+  if(ms.length)mk('ch-cum',{type:'line',data:{labels:ms.map(ml),datasets:[{label:'Engagé',data:de,borderColor:'#d8bd8c',tension:.35,pointRadius:3,pointBackgroundColor:'#d8bd8c'},{label:'Payé',data:dp,borderColor:'#9a7640',backgroundColor:'rgba(176,138,78,.12)',pointBackgroundColor:'#9a7640',fill:true,tension:.3,pointRadius:3}]},options:{scales:{y:{ticks:{callback:v=>keur(v)}}},plugins:{legend:{position:'bottom',labels:{boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.dataset.label} : ${eur(c.raw)}`}}}}});
+  else $('#ch-cum').parentNode.innerHTML='<div class="muted small">Pas encore de dépense datée.</div>';
+  const pp=ps.filter(x=>x.s.budget||x.s.engage);
+  if(pp.length)mk('ch-bar',{type:'bar',data:{labels:pp.map(x=>x.p.nom.length>16?x.p.nom.slice(0,15)+'…':x.p.nom),datasets:[{label:'Budget',data:pp.map(x=>r2(x.s.budget)),backgroundColor:'#efe4d0',borderRadius:6},{label:'Engagé',data:pp.map(x=>r2(x.s.engage)),backgroundColor:'#d8bd8c',borderRadius:6},{label:'Payé',data:pp.map(x=>r2(x.s.paye)),backgroundColor:'#a57f45',borderRadius:6}]},options:{scales:{y:{ticks:{callback:v=>keur(v)}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom',labels:{boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.dataset.label} : ${eur(c.raw)}`}}}}});
+  else $('#ch-bar').parentNode.innerHTML='<div class="muted small">Renseigne un budget pour comparer.</div>'}
+
+/* =========================================================
+   PROJETS
+   ========================================================= */
+function vProjets(){const ps=S.projects.slice().sort((a,b)=>({encours:0,reflexion:1,termine:2}[a.statut]-{encours:0,reflexion:1,termine:2}[b.statut])||a.nom.localeCompare(b.nom));
+  return hdr('Projets',`${S.projects.length} projet(s)`,`<button class="btn ghost" onclick="projectForm()">+ Nouveau projet</button><button class="btn" onclick="openImport()">⬆ Importer un devis</button>`)+
+  (ps.length?`<div class="cards">${ps.map(p=>{const s=pStats(p);return`<div class="pcard" onclick="go('projet','${p.id}','devis')"><div class="row"><span class="tag">${esc(p.categorie)}</span>${chipP(p.statut)}</div><h3>${esc(p.nom)}</h3>${bar(s.engage,s.budget)}<div class="mini"><div><span>Budget</span><b>${eur(s.budget)}</b></div><div><span>Engagé</span><b>${eur(s.engage)}</b></div><div><span>Payé</span><b>${eur(s.paye)}</b></div></div><div class="muted small">${s.qs.length} devis${s.enAttente?` · <span class="warn">${s.enAttente} à décider</span>`:''}${s.demandes?` · ${s.demandes} demandé(s)`:''}</div></div>`}).join('')}</div>`:`<div class="card empty"><h2>Aucun projet</h2><p>Crée ton premier projet ou importe un devis.</p><button class="btn" onclick="projectForm()">+ Nouveau projet</button></div>`)}
+function newProject(o){const p=Object.assign({id:uid(),nom:'Nouveau projet',categorie:'Travaux',statut:'encours',budget:0,marge:S.settings.marge,debut:today(),notes:'',aides:[],journal:[],docs:[],created:today()},o);S.projects.push(p);return p}
+function projectForm(id){const p=id?proj(id):{nom:'',categorie:'Travaux',statut:'encours',budget:'',marge:S.settings.marge,debut:today(),notes:''};
+  openModal(`<h2>${id?'Modifier le projet':'Nouveau projet'}</h2>
+  <div class="fg"><label style="grid-column:1/-1">Nom du projet<input id="pf-nom" value="${esc(p.nom)}" placeholder="Ex. Borne de recharge, Chambre bébé…"></label>
+  <label>Catégorie<select id="pf-cat">${CATS.map(c=>`<option ${p.categorie===c?'selected':''}>${c}</option>`).join('')}</select></label>
+  <label>Statut<select id="pf-st">${Object.entries(PSTAT).map(([k,v])=>`<option value="${k}" ${p.statut===k?'selected':''}>${v}</option>`).join('')}</select></label>
+  <label>Budget prévu (€ TTC)<input id="pf-bud" value="${p.budget===''?'':fN(p.budget)}" placeholder="0"></label>
+  <label>Marge d'imprévus (%)<input id="pf-mg" value="${p.marge}"></label>
+  <label>Date de début<input type="date" id="pf-deb" value="${p.debut||''}"></label><label>Date de l'événement (mariage, livraison…)<input type="date" id="pf-evt" value="${p.dateEvt||''}"></label></div>
+  <label>Notes<textarea id="pf-notes">${esc(p.notes)}</textarea></label>
+  <div class="foot">${id?`<button class="btn danger" onclick="deleteProject('${id}')">Supprimer</button><span style="flex:1"></span>`:''}<button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn" onclick="saveProject('${id||''}')">Enregistrer</button></div>`);setTimeout(()=>$('#pf-nom').focus(),50)}
+async function saveProject(id){const v={nom:$('#pf-nom').value.trim()||'Sans nom',categorie:$('#pf-cat').value,statut:$('#pf-st').value,budget:num($('#pf-bud').value),marge:num($('#pf-mg').value),debut:$('#pf-deb').value,dateEvt:$('#pf-evt').value,notes:$('#pf-notes').value};
+  let p;if(id){p=proj(id);Object.assign(p,v)}else p=newProject(v);await save();closeModal();go('projet',p.id,R.v==='projet'?R.tab:'devis');toast('Projet enregistré')}
+async function deleteProject(id){const p=proj(id),qs=S.quotes.filter(q=>q.projetId===id);if(!await ask(`Supprimer « ${p.nom} » et ses ${qs.length} devis ? Action définitive.`))return;
+  for(const q of qs){await DB.delFile(q.fileId);await DB.delFile(q.facture?.fileId)}for(const d of p.docs||[])await DB.delFile(d.fileId);
+  S.quotes=S.quotes.filter(q=>q.projetId!==id);S.projects=S.projects.filter(x=>x.id!==id);await save();closeModal();go('projets');toast('Projet supprimé')}
+
+function vProjet(){const p=proj(R.id);if(!p){R.v='projets';return vProjets()}const s=pStats(p);
+  const tabs={devis:`Devis (${s.qs.length})`,comparer:'Comparateur',echeances:'Échéancier',aides:`Aides (${(p.aides||[]).length})`,journal:`Journal (${(p.journal||[]).length})`,docs:`Documents & photos (${(p.docs||[]).length})`};
+  const t=tabs[R.tab]?R.tab:'devis';const T={devis:tDevis,comparer:tComparer,echeances:tEch,aides:tAides,journal:tJournal,docs:tDocs};
+  return`<div class="crumb"><a onclick="go('projets')">Projets</a> / ${esc(p.nom)}</div>`+
+  hdr(esc(p.nom),`${esc(p.categorie)} · ${PSTAT[p.statut]}${p.debut?' · depuis le '+fmtD(p.debut):''}${p.dateEvt?` · <b style="color:var(--go)">événement le ${fmtD(p.dateEvt)}${daysTo(p.dateEvt)>=0?' (J-'+daysTo(p.dateEvt)+')':''}</b>`:''}`,`<button class="btn ghost" onclick="projectForm('${p.id}')">Modifier</button><button class="btn ghost" onclick="exportProjetPDF('${p.id}')">Exporter PDF</button><button class="btn" onclick="openImport('${p.id}')">⬆ Importer un devis</button>`)+`
+  <div class="kpis">
+    ${kpi('Budget prévu',s.budget,'',s.budget?`avec marge ${num(p.marge)} % : ${eur(s.budgetMarge)}`:'non défini')}
+    ${kpi('Engagé',s.engage,'hl',s.budget?pct(s.engage/s.budget)+' du budget':'')}
+    ${kpi('Payé',s.paye)}${kpi('Reste à payer',s.reste)}
+    ${kpi('Aides',s.aidesTot,'',s.aidesRecues?eur(s.aidesRecues)+' reçues':'')}
+    ${kpi('Reste à charge',s.rac)}
+    ${kpi('Écart au budget',s.ecart,s.budget?(s.ecart>0?(s.engage>s.budgetMarge?'bad':''):'ok'):'',s.budget?(s.ecart>0?(s.engage>s.budgetMarge?'au-delà de la marge':'dans la marge'):'sous le budget'):'')}
+  </div>${s.budget?bar(s.engage,s.budget):''}
+  ${p.notes?`<div class="note">${esc(p.notes)}</div>`:''}
+  <div class="tabs">${Object.entries(tabs).map(([k,v])=>`<div class="tab ${k===t?'on':''}" onclick="R.tab='${k}';render()">${v}</div>`).join('')}</div>
+  ${T[t](p,s)}`}
+
+function quoteTable(qs,showProj){if(!qs.length)return`<div class="card empty"><p>Aucun devis ici pour l'instant.</p></div>`;
+  return`<div class="card tw"><table class="tbl"><thead><tr><th>Fournisseur</th><th>Objet</th>${showProj?'<th>Projet</th>':''}<th>Date</th><th>Validité</th><th class="r">Montant TTC</th><th class="r">Payé</th><th>Acomptes</th><th>Statut</th><th style="width:34px"></th></tr></thead><tbody>
+  ${qs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(q=>{const f=sup(q.fournisseurId),p=proj(q.projetId),dv=q.statut==='recu'&&q.validite?daysTo(q.validite):null,pd=payments(q).reduce((a,x)=>a+x.montant,0);
+    return`<tr class="c" onclick="go('devis1','${q.id}')"><td><b>${esc(f?.nom||'—')}</b>${q.fileId?' <span class="muted">📎</span>':''}${q.numero?`<div class="muted small">N° ${esc(q.numero)}</div>`:''}</td><td>${esc(q.objet||'')}</td>${showProj?`<td>${esc(p?.nom||'—')}</td>`:''}<td>${fmtD(q.date)}</td><td>${fmtD(q.validite)}${dv!==null?`<div class="small ${dv<0?'muted':dv<=S.settings.alerteValidite?'warn':'muted'}">${dv<0?'expiré':dv+' j'}</div>`:''}</td><td class="r"><b>${q.statut==='demande'?'—':eur(q.ttc)}</b>${q.facture&&num(q.facture.montant)?`<div class="small muted">facturé ${eur(q.facture.montant)}</div>`:''}</td><td class="r">${pd?eur(pd):'—'}</td><td>${(()=>{const a=accStats([q]);return a.nAc?`<span class="small ${a.nAcP===a.nAc?'ok':'warn'}">${a.nAcP}/${a.nAc} versé${a.nAcP>1?'s':''}</span>`:'<span class="muted">—</span>'})()}</td><td>${chipQ(q.statut)}</td><td><button class="x" title="Supprimer ce devis" onclick="event.stopPropagation();deleteQuote('${q.id}',true)">✕</button></td></tr>`}).join('')}
+  </tbody></table></div>`}
+function tDevis(p,s){return`<div class="row gap"><button class="btn sm" onclick="openImport('${p.id}')">⬆ Importer</button><button class="btn sm ghost" onclick="openQuoteForm({projetId:'${p.id}'}).then(q=>q&&render())">+ Saisie manuelle</button><button class="btn sm ghost" onclick="demandeForm('${p.id}')">+ Devis demandé (en attente)</button></div>${quoteTable(s.qs)}`}
+
+/* ---- Comparateur ---- */
+function tComparer(p,s){const qs=s.qs.filter(q=>q.statut!=='demande'&&num(q.ttc)>0);
+  if(qs.length<2)return`<div class="card empty"><p>Il faut au moins deux devis chiffrés dans ce projet pour comparer.</p></div>`;
+  const sel=qs.filter(q=>!CMPX.has(q.id));if(!sel.length)CMPX.clear();
+  const L=sel.length?sel:qs;const minP=Math.min(...L.map(q=>num(q.ttc)));const dl=L.map(q=>num(q.delai)).filter(x=>x>0);const minD=dl.length?Math.min(...dl):0;
+  const W=CMPW,tw=(W.prix+W.delai+W.avis+W.ressenti)||1;
+  const sc=q=>{const f=sup(q.fournisseurId);const sp=minP/num(q.ttc),sd=num(q.delai)>0&&minD?minD/num(q.delai):.5,sa=f?.note?f.note/5:.5,sr=q.ressenti?q.ressenti/5:.5;return Math.round((W.prix*sp+W.delai*sd+W.avis*sa+W.ressenti*sr)/tw*100)};
+  const scores=L.map(sc),best=L[scores.indexOf(Math.max(...scores))];
+  const row=(lab,fn)=>`<tr><td class="muted">${lab}</td>${L.map(q=>`<td class="${q===best?'best':''}">${fn(q)}</td>`).join('')}</tr>`;
+  return`<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><div class="row"><span class="muted small">Inclure :</span>${qs.map(q=>`<label class="ck"><input type="checkbox" ${CMPX.has(q.id)?'':'checked'} onchange="this.checked?CMPX.delete('${q.id}'):CMPX.add('${q.id}');render()">${esc(sup(q.fournisseurId)?.nom||'?')}</label>`).join('')}</div>
+  <div class="row"><span class="muted small">Pondération :</span>${[['prix','Prix'],['delai','Délai'],['avis','Avis fourn.'],['ressenti','Ressenti']].map(([k,l])=>`<label class="ck">${l}<input style="width:56px" value="${W[k]}" onchange="CMPW.${k}=num(this.value);render()"></label>`).join('')}</div></div></div>
+  <div class="card tw"><table class="tbl"><thead><tr><th></th>${L.map(q=>`<th class="${q===best?'best':''}" style="color:${q===best?'var(--am)':''}">${esc(sup(q.fournisseurId)?.nom||'?')}${q===best?' ★':''}</th>`).join('')}</tr></thead><tbody>
+  ${row('Montant TTC',q=>`<b>${eur(q.ttc)}</b>${num(q.ttc)>minP?`<div class="small bad">+${eur(num(q.ttc)-minP)}</div>`:'<div class="small ok">le moins cher</div>'}`)}
+  ${row('Montant HT',q=>eur(q.ht))}
+  ${row('Délai',q=>q.delai?q.delai+' j':'—')}
+  ${row('Validité',q=>fmtD(q.validite))}
+  ${row('Acompte',q=>q.acomptePct?q.acomptePct+' %':'—')}
+  ${row('Garantie',q=>esc(q.garantie?.type||'—'))}
+  ${row('Nb de lignes',q=>(q.lignes||[]).length)}
+  ${row('Avis fournisseur',q=>{const f=sup(q.fournisseurId);return f?`<select onchange="setSupNote('${f.id}',this.value)">${[0,1,2,3,4,5].map(n=>`<option value="${n}" ${f.note==n?'selected':''}>${n?'★'.repeat(n):'—'}</option>`).join('')}</select>`:'—'})}
+  ${row('Ton ressenti',q=>`<select onchange="setQ('${q.id}','ressenti',+this.value)">${[0,1,2,3,4,5].map(n=>`<option value="${n}" ${q.ressenti==n?'selected':''}>${n?'★'.repeat(n):'—'}</option>`).join('')}</select>`)}
+  ${row('Statut',q=>chipQ(q.statut))}
+  ${row('<b>Score</b>',q=>`<b style="font-size:20px;font-family:'Cormorant Garamond';font-size:24px;color:${q===best?'var(--am)':''}">${sc(q)}</b>/100`)}
+  ${row('',q=>q.statut==='recu'?`<button class="btn sm" onclick="acceptQuote('${q.id}')">Accepter</button>`:`<button class="btn sm ghost" onclick="go('devis1','${q.id}')">Ouvrir</button>`)}
+  </tbody></table><p class="muted small" style="margin-top:10px">Score = prix (le moins cher = 100 %) + délai (le plus court = 100 %) + avis fournisseur + ton ressenti, selon la pondération. Critère non renseigné = valeur neutre.</p></div>`}
+async function setSupNote(id,v){sup(id).note=+v;await save();render()}
+async function setQ(id,k,v){quo(id)[k]=v;await save();render()}
+async function acceptQuote(id){const q=quo(id);q.statut='accepte';q.dateAccept=today();
+  const others=S.quotes.filter(x=>x.projetId===q.projetId&&x.id!==id&&(x.statut==='recu'||x.statut==='demande'));
+  if(others.length&&await ask(`Marquer les ${others.length} autre(s) devis en attente de ce projet comme refusés ?`))others.forEach(x=>x.statut='refuse');
+  if(!(q.echeances||[]).length&&num(q.acomptePct))buildEch(q,num(q.acomptePct));
+  await save();toast('Devis accepté');render()}
+
+/* ---- Échéancier ---- */
+function echTable(list,showQ){if(!list.length)return`<div class="muted small" style="padding:8px">Aucune échéance. Crée-les depuis un devis avec le bouton « Plan de paiement / acomptes ».</div>`;
+  return`<div class="tw"><table class="tbl"><thead><tr><th>Date</th>${showQ?'<th>Fournisseur · projet</th>':''}<th>Type</th><th>Libellé</th><th class="r">Montant</th><th>Versé</th><th>Versé le</th></tr></thead><tbody>
+  ${list.map(({q,e})=>{const d=daysTo(e.date);return`<tr><td>${fmtD(e.date)}${!e.paye&&d!==null?`<div class="small ${d<0?'bad':d<=30?'warn':'muted'}">${d<0?`en retard ${-d} j`:d===0?"aujourd'hui":`dans ${d} j`}</div>`:''}</td>${showQ?`<td><a onclick="go('devis1','${q.id}')">${esc(sup(q.fournisseurId)?.nom||'?')}</a><div class="muted small">${esc(proj(q.projetId)?.nom||'')}</div></td>`:''}<td>${tChip(eType(e))}</td><td>${esc(e.libelle||'')}</td><td class="r"><b>${eur(e.montant)}</b></td><td><input type="checkbox" ${e.paye?'checked':''} onchange="payEch('${q.id}','${e.id}',this.checked)"></td><td class="muted">${e.paye?fmtD(e.datePaiement):''}</td></tr>`}).join('')}
+  </tbody></table></div>`}
+async function payEch(qid,eid,v){const q=quo(qid),e=q.echeances.find(x=>x.id===eid);e.paye=v;e.datePaiement=v?(e.datePaiement||today()):'';
+  if(v&&(q.statut==='recu'||q.statut==='demande')){q.statut='accepte';q.dateAccept=q.dateAccept||today();toast('Acompte versé : devis passé en « Accepté »')}
+  if(q.echeances.every(x=>x.paye)&&q.statut!=='paye'){q.statut='paye';q.datePaye=today();toast('Tout est réglé : devis passé en « Payé »')}
+  else if(!v&&q.statut==='paye')q.statut=q.facture?'facture':'accepte';await save();render()}
+function tEch(p,s){const l=allEch(s.qs);const tot=l.reduce((a,x)=>a+num(x.e.montant),0),pd=l.filter(x=>x.e.paye).reduce((a,x)=>a+num(x.e.montant),0);
+  return`<div class="card">${accBadges(accStats(s.qs.filter(q=>ENG.includes(q.statut))))}<div class="row gap muted small">Total échéancé ${eur(tot)} · versé ${eur(pd)} · reste ${eur(tot-pd)}</div>${echTable(l,true)}</div>`}
+
+/* ---- Aides ---- */
+function tAides(p){return`<div class="card"><p class="muted small" style="margin-top:0">MaPrimeRénov', primes CEE, crédit d'impôt, aide de la commune, participation familiale… Elles se déduisent pour calculer le reste à charge.</p>
+  <div class="tw"><table class="tbl"><thead><tr><th>Aide</th><th style="width:150px">Montant</th><th style="width:160px">Statut</th><th style="width:160px">Date prévue</th><th style="width:40px"></th></tr></thead><tbody>
+  ${(p.aides||[]).map(a=>`<tr><td><input value="${esc(a.libelle)}" onchange="setAide('${p.id}','${a.id}','libelle',this.value)"></td><td><input class="n" value="${fN(a.montant)}" onchange="setAide('${p.id}','${a.id}','montant',num(this.value))"></td><td><select onchange="setAide('${p.id}','${a.id}','statut',this.value)">${[['demandee','À demander / demandée'],['accordee','Accordée'],['recue','Reçue']].map(([k,v])=>`<option value="${k}" ${a.statut===k?'selected':''}>${v}</option>`).join('')}</select></td><td><input type="date" value="${a.date||''}" onchange="setAide('${p.id}','${a.id}','date',this.value)"></td><td><button class="x" onclick="delAide('${p.id}','${a.id}')">✕</button></td></tr>`).join('')||'<tr><td colspan="5" class="muted">Aucune aide.</td></tr>'}
+  </tbody></table></div><div style="margin-top:10px"><button class="btn sm" onclick="addAide('${p.id}')">+ Ajouter une aide</button></div></div>`}
+async function addAide(pid){proj(pid).aides.push({id:uid(),libelle:'Nouvelle aide',montant:0,statut:'demandee',date:''});await save();render()}
+async function setAide(pid,aid,k,v){const a=proj(pid).aides.find(x=>x.id===aid);a[k]=v;await save();render()}
+async function delAide(pid,aid){const p=proj(pid);p.aides=p.aides.filter(x=>x.id!==aid);await save();render()}
+
+/* ---- Journal ---- */
+function tJournal(p){const J=(p.journal||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  return`<div class="card"><div class="row gap" style="align-items:flex-start"><input type="date" id="jr-d" value="${today()}"><textarea id="jr-t" style="flex:1;min-height:42px" placeholder="Ex. Rappelé l'électricien, passe jeudi pour métrer…"></textarea><button class="btn" onclick="addJournal('${p.id}')">Ajouter</button></div>
+  ${J.map(j=>`<div class="al" style="cursor:default"><i class="muted">${fmtD(j.date)}</i><div style="flex:1;white-space:pre-wrap">${esc(j.texte)}</div><button class="x" onclick="delJournal('${p.id}','${j.id}')">✕</button></div>`).join('')||'<div class="muted small">Aucune entrée.</div>'}</div>`}
+async function addJournal(pid){const t=$('#jr-t').value.trim();if(!t)return;proj(pid).journal.push({id:uid(),date:$('#jr-d').value||today(),texte:t});await save();render()}
+async function delJournal(pid,id){const p=proj(pid);p.journal=p.journal.filter(x=>x.id!==id);await save();render()}
+
+/* ---- Documents & photos ---- */
+const KINDS={avant:'Photo avant',apres:'Photo après',plan:'Plan / schéma',garantie:'Garantie / notice',pv:'PV de réception',document:'Autre document'};
+function tDocs(p){POST.push(async()=>{for(const im of $$('img[data-fid]')){const f=await DB.getFile(im.dataset.fid);if(f)im.src=URL.createObjectURL(f.blob)}});
+  const groups=Object.keys(KINDS).map(k=>[k,(p.docs||[]).filter(d=>d.kind===k)]).filter(g=>g[1].length);
+  return`<div class="card"><div class="row gap"><select id="doc-k">${Object.entries(KINDS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><label class="btn sm" style="display:inline-block;color:#fff">+ Ajouter des fichiers<input type="file" multiple hidden onchange="uploadDocs('${p.id}',this.files)"></label></div>
+  ${groups.map(([k,ds])=>`<h3 style="margin-top:14px">${KINDS[k]}</h3><div class="docs">${ds.map(d=>`<div class="doc" onclick="openFile('${d.fileId}')">${/^image\//.test(d.type)?`<img data-fid="${d.fileId}" alt="">`:`<div class="ph">${/pdf/.test(d.type)?'📄':'📎'}</div>`}<div class="m">${esc(d.nom)}<div class="muted">${fmtD(d.date)}</div></div><button class="x" onclick="event.stopPropagation();delDoc('${p.id}','${d.id}')">✕</button></div>`).join('')}</div>`).join('')||'<div class="muted small">Aucun document. Ajoute des photos avant/après, plans, garanties…</div>'}</div>`}
+async function uploadDocs(pid,files){const p=proj(pid),k=$('#doc-k').value;for(const f of files){const fid=uid();await DB.putFile(fid,{name:f.name,type:f.type,blob:f});p.docs.push({id:uid(),fileId:fid,nom:f.name,type:f.type,kind:k,date:today()})}await save();render();toast(files.length+' fichier(s) ajouté(s)')}
+async function delDoc(pid,id){if(!await ask('Supprimer ce document ?'))return;const p=proj(pid),d=p.docs.find(x=>x.id===id);await DB.delFile(d.fileId);p.docs=p.docs.filter(x=>x.id!==id);await save();render()}
+
+/* =========================================================
+   DEVIS
+   ========================================================= */
+function vDevis(){let qs=S.quotes.filter(q=>(!DF.st||q.statut===DF.st)&&(!DF.pj||q.projetId===DF.pj));
+  if(DF.q){const n=DF.q.toLowerCase();qs=qs.filter(q=>[q.objet,q.numero,sup(q.fournisseurId)?.nom,proj(q.projetId)?.nom].join(' ').toLowerCase().includes(n))}
+  return hdr('Devis',`${S.quotes.length} devis au total`)+`<div class="filters"><input placeholder="Rechercher…" value="${esc(DF.q)}" onchange="DF.q=this.value;render()"><select onchange="DF.st=this.value;render()"><option value="">Tous statuts</option>${Object.entries(QSTAT).map(([k,v])=>`<option value="${k}" ${DF.st===k?'selected':''}>${v}</option>`).join('')}</select><select onchange="DF.pj=this.value;render()">${projOpts(DF.pj,'Tous projets')}</select></div>`+quoteTable(qs,true)}
+
+function vDevis1(){const q=quo(R.id);if(!q){R.v='devis';return vDevis()}const p=proj(q.projetId),f=sup(q.fournisseurId);
+  const E=q.echeances||[],eT=E.reduce((a,e)=>a+num(e.montant),0),base=qEngage(q)||num(q.ttc),dv=q.validite?daysTo(q.validite):null;
+  const fa=q.facture;const ecart=fa&&num(fa.montant)?num(fa.montant)-num(q.ttc):0;
+  return`<div class="crumb"><a onclick="go('projets')">Projets</a> / <a onclick="go('projet','${p?.id}','devis')">${esc(p?.nom||'—')}</a> / Devis</div>`+
+  hdr(esc(f?.nom||'Fournisseur ?'),`${esc(q.objet||'')}${q.numero?' · N° '+esc(q.numero):''}`,`${q.fileId?`<button class="btn ghost" onclick="openFile('${q.fileId}')">📎 Voir le devis</button>`:''}<button class="btn ghost" onclick="editQuote('${q.id}')">Modifier</button><button class="btn danger" onclick="deleteQuote('${q.id}')">Supprimer</button>`)+`
+  <div class="steps">${Object.entries(QSTAT).map(([k,v])=>`<div class="step ${q.statut===k?'on':''}" onclick="setQStat('${q.id}','${k}')">${v}</div>`).join('')}</div>
+  <div class="gridq">
+   <div>
+    <section class="card" style="margin-bottom:14px"><h3>Détail</h3><dl class="dl">
+      <dt>Projet</dt><dd><a onclick="go('projet','${p?.id}','devis')">${esc(p?.nom||'—')}</a></dd>
+      <dt>Date du devis</dt><dd>${fmtD(q.date)}</dd>
+      <dt>Validité</dt><dd>${fmtD(q.validite)}${dv!==null&&q.statut==='recu'?` <span class="small ${dv<0?'bad':dv<=S.settings.alerteValidite?'warn':'muted'}">(${dv<0?'expiré':dv+' j restants'})</span>`:''}</dd>
+      <dt>Délai annoncé</dt><dd>${q.delai?q.delai+' jours':'—'}</dd>
+      <dt>Acompte prévu</dt><dd>${q.acomptePct?q.acomptePct+' %':'—'}</dd>
+      <dt>Garantie</dt><dd>${esc(q.garantie?.type||'—')}${q.garantie?.fin?' · jusqu\'au '+fmtD(q.garantie.fin):''}</dd>
+      <dt>Ton ressenti</dt><dd>${stars(q.ressenti)}</dd>
+      ${q.dateAccept?`<dt>Accepté le</dt><dd>${fmtD(q.dateAccept)}</dd>`:''}
+      ${q.notes?`<dt>Notes</dt><dd style="white-space:pre-wrap">${esc(q.notes)}</dd>`:''}
+    </dl></section>
+    <section class="card"><h3>Lignes du devis</h3>${(q.lignes||[]).length?`<div class="tw"><table class="tbl"><thead><tr><th>Désignation</th><th class="r">Qté</th><th>Unité</th><th class="r">PU HT</th><th class="r">TVA</th><th class="r">Total HT</th></tr></thead><tbody>${q.lignes.map(l=>`<tr><td>${esc(l.des)}</td><td class="r">${num(l.qte).toLocaleString('fr-FR')}</td><td>${esc(l.unite||'')}</td><td class="r">${eur(l.pu)}</td><td class="r">${num(l.tva).toLocaleString('fr-FR')} %</td><td class="r">${eur(num(l.qte)*num(l.pu))}</td></tr>`).join('')}</tbody></table></div>`:'<div class="muted small">Pas de détail des lignes.</div>'}
+      <div class="tot"><div><span class="muted">Total HT</span><b>${eur(q.ht)}</b></div><div><span class="muted">TVA</span><b>${eur(q.tva)}</b></div><div class="g"><span>Total TTC</span><span>${eur(q.ttc)}</span></div></div></section>
+   </div>
+   <div>
+    <section class="card" style="margin-bottom:14px"><h3>Acomptes & paiements</h3>
+      ${accBadges(accStats([q]))}
+      ${!ENG.includes(q.statut)?'<div class="note w">Cocher un acompte comme versé fait passer le devis en « Accepté ».</div>':''}
+      ${E.length?`<div class="tw"><table class="tbl"><tbody>${E.slice().sort((x,y)=>(x.date||'9').localeCompare(y.date||'9')).map(e=>{const d=daysTo(e.date);return`<tr><td style="width:84px">${tChip(eType(e))}</td><td><b style="font-weight:500">${esc(e.libelle||'')}</b><div class="small muted">${e.paye?'versé le '+fmtD(e.datePaiement):fmtD(e.date)+(d!==null?` · <span class="${d<0?'bad':d<=30?'warn':''}">${d<0?'en retard '+(-d)+' j':d===0?"aujourd'hui":'dans '+d+' j'}</span>`:'')}</div></td><td class="r"><b>${eur(e.montant)}</b></td><td style="width:60px;text-align:center"><label class="ck" style="justify-content:center"><input type="checkbox" ${e.paye?'checked':''} onchange="payEch('${q.id}','${e.id}',this.checked)"></label><div class="small muted">versé</div></td></tr>`}).join('')}</tbody></table></div>
+      <div class="small ${close(eT,base)?'muted':'warn'}" style="margin-top:6px">Total prévu ${eur(eT)} / ${eur(base)}${close(eT,base)?'':' — écart de '+eur(base-eT)}</div>`:'<div class="muted small">Aucun acompte ni échéance pour l\'instant.</div>'}
+      <div class="row" style="margin-top:10px"><button class="btn sm" onclick="planForm('${q.id}')">Plan de paiement / acomptes</button></div></section>
+    <section class="card" style="margin-bottom:14px"><h3>Facture</h3>
+      ${fa?`<dl class="dl"><dt>Montant TTC</dt><dd><input class="n" style="width:130px" value="${fN(fa.montant)}" onchange="setFact('${q.id}','montant',num(this.value))"></dd><dt>Date</dt><dd><input type="date" value="${fa.date||''}" onchange="setFact('${q.id}','date',this.value)"></dd>
+      <dt>Écart / devis</dt><dd class="${ecart>0.05?'bad':ecart<-0.05?'ok':'muted'}"><b>${Math.abs(ecart)<0.05?'Conforme au devis':(ecart>0?'+':'')+eur(ecart)}</b></dd>${fa.fileId?`<dt>Fichier</dt><dd><a onclick="openFile('${fa.fileId}')">📎 ${esc(fa.fileName||'facture')}</a></dd>`:''}</dl>
+      <div class="row" style="margin-top:10px"><label class="btn sm ghost" style="display:inline-block;color:var(--tx)">Remplacer le fichier<input type="file" hidden accept=".pdf,image/*" onchange="factUpload('${q.id}',this.files[0])"></label><button class="btn sm danger" onclick="delFact('${q.id}')">Retirer</button></div>`
+      :`<p class="muted small" style="margin-top:0">Importe la facture finale : son montant est lu et comparé au devis.</p><div class="row"><label class="btn sm" style="display:inline-block;color:#fff">⬆ Importer la facture<input type="file" hidden accept=".pdf,image/*" onchange="factUpload('${q.id}',this.files[0])"></label><button class="btn sm ghost" onclick="setFact('${q.id}','montant',${num(q.ttc)})">Saisir à la main</button></div>`}</section>
+    <section class="card"><h3>Fournisseur</h3>${f?`<dl class="dl"><dt>Nom</dt><dd><b>${esc(f.nom)}</b></dd>${f.metier?`<dt>Métier</dt><dd>${esc(f.metier)}</dd>`:''}${f.contact?`<dt>Contact</dt><dd>${esc(f.contact)}</dd>`:''}${f.tel?`<dt>Téléphone</dt><dd><a href="tel:${esc(f.tel.replace(/\s/g,''))}">${esc(f.tel)}</a></dd>`:''}${f.email?`<dt>Email</dt><dd><a href="mailto:${esc(f.email)}">${esc(f.email)}</a></dd>`:''}<dt>Avis</dt><dd>${stars(f.note)}</dd></dl><div style="margin-top:10px"><button class="btn sm ghost" onclick="supplierForm('${f.id}')">Fiche fournisseur</button></div>`:'<div class="muted small">Non renseigné.</div>'}</section>
+   </div>
+  </div>`}
+async function setQStat(id,st){const q=quo(id);q.statut=st;
+  if(st==='accepte'){q.dateAccept=q.dateAccept||today();if(!(q.echeances||[]).length&&num(q.acomptePct))buildEch(q,num(q.acomptePct))}
+  if(st==='paye'){const un=(q.echeances||[]).filter(e=>!e.paye);if(un.length&&await ask(`Marquer les ${un.length} échéance(s) restante(s) comme payées aujourd'hui ?`))un.forEach(e=>{e.paye=true;e.datePaiement=today()});q.datePaye=q.datePaye||today()}
+  if(st==='accepte'){const o=S.quotes.filter(x=>x.projetId===q.projetId&&x.id!==id&&x.statut==='recu');if(o.length&&await ask(`Marquer les ${o.length} autre(s) devis reçus de ce projet comme refusés ?`))o.forEach(x=>x.statut='refuse')}
+  await save();render()}
+function buildEch(q,pc){const base=qEngage(q)||num(q.ttc);const a=r2(base*pc/100);q.echeances=[{id:uid(),type:'acompte',libelle:`Acompte ${pc} %`,date:q.dateAccept||today(),montant:a,paye:false},{id:uid(),type:'solde',libelle:'Solde',date:addDays(q.dateAccept||today(),num(q.delai)||30),montant:r2(base-a),paye:false}]}
+const ETYPES={acompte:'Acompte',solde:'Solde',autre:'Autre'};
+const tChip=t=>`<span class="chip ${t==='acompte'?'c-facture':t==='solde'?'c-accepte':'c-demande'}">${ETYPES[t]}</span>`;
+let PL=null;
+function plDefault(q,pcts){const p=proj(q.projetId),base=PL?PL.base:(qEngage(q)||num(q.ttc)),start=q.dateAccept||today(),evt=p?.dateEvt;
+  const end=evt?addDays(evt,-15):addDays(start,(num(q.delai)||30)+30*pcts.length);const span=Math.max(0,daysTo(end)-daysTo(start));
+  const rows=pcts.map((pc,i)=>({id:uid(),type:'acompte',libelle:`Acompte ${i+1} (${String(pc).replace('.',',')} %)`,date:i===0?start:addDays(start,Math.round(span*i/(pcts.length))),montant:r2(base*pc/100),paye:false}));
+  rows.push({id:uid(),type:'solde',libelle:'Solde',date:end,montant:0,paye:false});return rows}
+function planForm(id){const q=quo(id),p=proj(q.projetId),base=qEngage(q)||num(q.ttc);
+  PL={id,base,rows:(q.echeances||[]).length?q.echeances.map(e=>({...e,type:eType(e)})):null};if(!PL.rows)PL.rows=plDefault(q,[num(q.acomptePct)||30]);
+  openModal(`<h2>Plan de paiement</h2><p class="muted small" style="margin-top:-6px">${esc(sup(q.fournisseurId)?.nom||'')} · montant à régler <b style="color:var(--go)">${eur(base)}</b>${p?.dateEvt?` · événement le <b>${fmtD(p.dateEvt)}</b> (solde proposé à J-15)`:''}</p>
+  <div class="row gap"><span class="muted small">Modèles :</span>${[[[30],'30 % + solde'],[[50],'50 % + solde'],[[30,30],'30 % + 30 % + solde'],[[30,30,20],'3 acomptes + solde']].map(([a,l])=>`<button class="btn sm ghost" onclick="plPreset([${a}])">${l}</button>`).join('')}</div>
+  <div id="pl-rows"></div><div class="row" style="margin-top:8px"><button class="btn sm ghost" onclick="plAdd()">+ Acompte</button><span class="muted small">Le solde se calcule tout seul. Coche « Versé » pour un acompte déjà payé.</span></div>
+  <div id="pl-sum" style="margin-top:12px"></div>
+  <div class="foot"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn" onclick="plSave()">Enregistrer le plan</button></div>`,'wide');
+  $('#modal .box').style.width='min(900px,100%)';plCalc();plRender()}
+function plPreset(a){const q=quo(PL.id);const paid=PL.rows.filter(r=>r.paye);PL.rows=plDefault(q,a);paid.forEach((r,i)=>{if(PL.rows[i]&&PL.rows[i].type==='acompte'){PL.rows[i].paye=true;PL.rows[i].datePaiement=r.datePaiement;PL.rows[i].montant=r.montant}});plCalc();plRender()}
+function plAdd(){const i=PL.rows.findIndex(r=>r.type==='solde');const n=PL.rows.filter(r=>r.type==='acompte').length+1;const row={id:uid(),type:'acompte',libelle:`Acompte ${n}`,date:today(),montant:0,paye:false};if(i>=0)PL.rows.splice(i,0,row);else PL.rows.push(row);plCalc();plRender()}
+function plCalc(){const so=PL.rows.filter(r=>r.type==='solde');if(so.length){const other=PL.rows.filter(r=>r.type!=='solde').reduce((a,r)=>a+num(r.montant),0);so[0].montant=r2(Math.max(0,PL.base-other));so.slice(1).forEach(r=>r.montant=0)}}
+function plSet(i,k,v){const r=PL.rows[i];if(k==='pct')r.montant=r2(PL.base*num(v)/100);else if(k==='montant')r.montant=num(v);else if(k==='paye'){r.paye=v;r.datePaiement=v?(r.datePaiement||today()):''}else r[k]=v;
+  if(k!=='libelle'&&k!=='date'&&k!=='datePaiement'){plCalc();plRender()}}
+function plDel(i){PL.rows.splice(i,1);plCalc();plRender()}
+function plRender(){const R_=PL.rows;$('#pl-rows').innerHTML=`<div class="tw"><table class="tbl"><thead><tr><th style="width:110px">Type</th><th style="min-width:170px">Libellé</th><th style="width:78px" class="r">%</th><th style="width:115px" class="r">Montant</th><th style="width:135px">Échéance</th><th style="width:50px">Versé</th><th style="width:135px">Versé le</th><th style="width:30px"></th></tr></thead><tbody>
+  ${R_.map((r,i)=>`<tr><td><select onchange="plSet(${i},'type',this.value)">${Object.entries(ETYPES).map(([k,v])=>`<option value="${k}" ${r.type===k?'selected':''}>${v}</option>`).join('')}</select></td><td><input value="${esc(r.libelle)}" onchange="plSet(${i},'libelle',this.value)"></td>
+  <td><input class="n" value="${PL.base?String(r2(num(r.montant)/PL.base*100)).replace('.',','):''}" ${r.type==='solde'?'disabled':''} onchange="plSet(${i},'pct',this.value)"></td><td><input class="n" value="${fN(r.montant)}" ${r.type==='solde'?'disabled':''} onchange="plSet(${i},'montant',this.value)"></td>
+  <td><input type="date" value="${r.date||''}" onchange="plSet(${i},'date',this.value)"></td><td style="text-align:center"><input type="checkbox" ${r.paye?'checked':''} onchange="plSet(${i},'paye',this.checked)"></td><td>${r.paye?`<input type="date" value="${r.datePaiement||''}" onchange="plSet(${i},'datePaiement',this.value)">`:'<span class="muted">—</span>'}</td><td><button class="x" onclick="plDel(${i})">✕</button></td></tr>`).join('')}</tbody></table></div>`;
+  const tot=R_.reduce((a,r)=>a+num(r.montant),0),o=accStats([{echeances:R_}]);
+  $('#pl-sum').innerHTML=accBadges(o)+`<div class="small ${close(tot,PL.base)?'muted':'bad'}">Total du plan ${eur(tot)} / ${eur(PL.base)}${close(tot,PL.base)?' ✓':' — écart de '+eur(PL.base-tot)}</div>`}
+async function plSave(){const q=quo(PL.id);q.echeances=PL.rows.filter(r=>num(r.montant)>0||r.type!=='solde').map(r=>({id:r.id||uid(),type:r.type,libelle:r.libelle||ETYPES[r.type],date:r.date||'',montant:r2(num(r.montant)),paye:!!r.paye,datePaiement:r.paye?(r.datePaiement||today()):''}));
+  const nA=q.echeances.filter(e=>e.type==='acompte');if(nA.length&&PL.base)q.acomptePct=r2(num(nA[0].montant)/PL.base*100);
+  if(q.echeances.some(e=>e.paye)&&(q.statut==='recu'||q.statut==='demande')){q.statut='accepte';q.dateAccept=q.dateAccept||today()}
+  if(q.echeances.length&&q.echeances.every(e=>e.paye)&&q.statut!=='paye'){q.statut='paye';q.datePaye=today()}
+  PL=null;await save();closeModal();render();toast('Plan de paiement enregistré')}
+async function genEch(id){const q=quo(id);if((q.echeances||[]).length&&!await ask('Remplacer l\'échéancier actuel ?'))return;const v=await askVal('Pourcentage d\'acompte ?',q.acomptePct||30);if(v===null)return;q.acomptePct=num(v);buildEch(q,num(v));await save();render()}
+async function addEch(id){const q=quo(id);q.echeances=q.echeances||[];const rest=(qEngage(q)||num(q.ttc))-q.echeances.reduce((a,e)=>a+num(e.montant),0);q.echeances.push({id:uid(),type:'autre',libelle:'Échéance',date:today(),montant:r2(Math.max(0,rest)),paye:false});await save();render()}
+async function updEch(qid,eid,k,v){const e=quo(qid).echeances.find(x=>x.id===eid);e[k]=v;await save();render()}
+async function delEch(qid,eid){const q=quo(qid);q.echeances=q.echeances.filter(x=>x.id!==eid);await save();render()}
+async function setFact(id,k,v){const q=quo(id);q.facture=q.facture||{montant:num(q.ttc),date:today()};q.facture[k]=v;if(q.statut==='accepte'||q.statut==='recu')q.statut='facture';await save();render()}
+async function delFact(id){const q=quo(id);if(!await ask('Retirer la facture ?'))return;await DB.delFile(q.facture?.fileId);q.facture=null;if(q.statut==='facture')q.statut='accepte';await save();render()}
+async function factUpload(id,file){if(!file)return;const q=quo(id);let P={};try{P=await analyze(file)}catch(e){}busy(false);
+  const fid=uid();await DB.putFile(fid,{name:file.name,type:file.type,blob:file});if(q.facture?.fileId)await DB.delFile(q.facture.fileId);
+  q.facture={montant:num(P.ttc)||num(q.ttc),date:P.date||today(),fileId:fid,fileName:file.name};if(q.statut==='accepte'||q.statut==='recu')q.statut='facture';
+  await save();render();toast(P.ttc?`Facture lue : ${eur(P.ttc)} — vérifie le montant`:'Facture ajoutée — vérifie le montant')}
+async function deleteQuote(id,stay){const q=quo(id);if(!await ask('Supprimer ce devis ?'))return;await DB.delFile(q.fileId);await DB.delFile(q.facture?.fileId);S.quotes=S.quotes.filter(x=>x.id!==id);await save();if(stay)render();else go('projet',q.projetId,'devis');toast('Devis supprimé')}
+async function editQuote(id){const q=await openQuoteForm({q:quo(id)});if(q)render()}
+
+function demandeForm(pid){openModal(`<h2>Devis demandé</h2><p class="muted small">Tu as demandé un devis et tu attends la réponse : l'appli te rappellera de relancer au bout de ${S.settings.relance} jours.</p>
+  <datalist id="suplist">${S.suppliers.map(s=>`<option value="${esc(s.nom)}">`).join('')}</datalist>
+  <div class="fg"><label>Projet<select id="dm-p">${projOpts(pid)}</select></label><label>Fournisseur<input id="dm-f" list="suplist"></label><label>Téléphone<input id="dm-t"></label><label>Demandé le<input type="date" id="dm-d" value="${today()}"></label><label style="grid-column:1/-1">Objet<input id="dm-o" placeholder="Ex. Pose borne + tirage de câble"></label></div>
+  <div class="foot"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn" onclick="saveDemande()">Enregistrer</button></div>`)}
+async function saveDemande(){const nom=$('#dm-f').value.trim();if(!nom)return toast('Indique le fournisseur','bad');const f=findOrCreateSup({nom,tel:$('#dm-t').value});
+  S.quotes.push({id:uid(),projetId:$('#dm-p').value,fournisseurId:f.id,objet:$('#dm-o').value,date:$('#dm-d').value||today(),statut:'demande',lignes:[],ht:0,tva:0,ttc:0,echeances:[],facture:null,garantie:{type:'',fin:''},created:today()});
+  await save();closeModal();render();toast('Demande enregistrée')}
+function findOrCreateSup(o){let f=S.suppliers.find(s=>(o.siret&&s.siret&&s.siret.replace(/\s/g,'')===o.siret.replace(/\s/g,''))||(o.nom&&norm(s.nom)===norm(o.nom)));
+  if(!f){f={id:uid(),nom:o.nom||'Sans nom',contact:'',tel:'',email:'',adresse:'',siret:'',metier:'',note:0,avis:''};S.suppliers.push(f)}
+  ['contact','tel','email','adresse','siret','metier'].forEach(k=>{if(o[k]&&!f[k])f[k]=o[k]});return f}
+
+/* ---------- Formulaire de devis (vérification après import) ---------- */
+function openQuoteForm({q,file,parsed,projetId}){return new Promise(async res=>{
+  const P=parsed||{},isNew=!q;
+  const base=q?JSON.parse(JSON.stringify(q)):{id:uid(),projetId:projetId||'',fournisseurId:'',numero:P.numero||'',objet:P.objet||'',date:P.date||today(),validite:P.validite||'',delai:P.delai||'',
+    lignes:(P.lignes||[]).map(l=>({id:uid(),des:l.des||'',qte:l.qte||1,unite:l.unite||'',pu:l.pu||0,tva:l.tva??20})),ht:num(P.ht),tva:num(P.tva),ttc:num(P.ttc),statut:'recu',echeances:[],facture:null,
+    garantie:P.garantie||{type:'',fin:''},acomptePct:P.acomptePct||'',ressenti:0,notes:P.notes||'',created:today()};
+  const PF=P.fournisseur||{};const ex=q?sup(q.fournisseurId):S.suppliers.find(s=>(PF.siret&&s.siret&&s.siret.replace(/\s/g,'')===String(PF.siret).replace(/\s/g,''))||(PF.nom&&norm(s.nom)===norm(PF.nom)));
+  const F=ex?{...ex}:{nom:PF.nom||'',contact:PF.contact||'',tel:PF.tel||'',email:PF.email||'',adresse:PF.adresse||'',siret:PF.siret||'',metier:PF.metier||''};
+  const sumL=base.lignes.reduce((a,l)=>a+num(l.qte)*num(l.pu),0);
+  QF={q:base,file,res,isNew,ttcMode:false,auto:base.lignes.length>0&&(!base.ht||close(sumL,base.ht)),url:null};
+  let pv='',hasPrev=!!(file||q?.fileId);
+  if(hasPrev){let blob=file,type=file?.type;if(!file){const fo=await DB.getFile(q.fileId);if(fo){blob=fo.blob;type=fo.type}else hasPrev=false}
+    if(blob){QF.url=URL.createObjectURL(blob);pv=/pdf/.test(type)||/\.pdf$/i.test(file?.name||'')?`<iframe src="${QF.url}"></iframe>`:/^image\//.test(type)?`<img src="${QF.url}">`:`<div class="empty">Aperçu indisponible</div>`}}
+  const noProj=!S.projects.length,pSel=base.projetId||(noProj?'__new':'');
+  const guessName=base.objet||F.metier||'';
+  openModal(`<div class="qf ${hasPrev?'':'nofile'}"><div class="qf-prev">${pv}</div><div>
+  <h2>${isNew?(file?'Vérifie le devis importé':'Nouveau devis'):'Modifier le devis'}</h2>
+  ${file?`<div class="note ${/échec|aucun/.test(P.source||'')?'w':''}">Lecture : <b>${esc(P.source||'—')}</b>. ${/aucun/.test(P.source||'')?'Aucun texte trouvé : complète à la main.':'Vérifie les champs (surtout les montants) avant d\'enregistrer.'}</div>`:''}
+  <datalist id="suplist">${S.suppliers.map(s=>`<option value="${esc(s.nom)}">`).join('')}</datalist>
+  <fieldset><legend>Rangement</legend><div class="fg" style="margin:0"><label>Projet<select id="qf-projet" onchange="$('#qf-newp').hidden=this.value!=='__new'"><option value="" disabled ${pSel?'':'selected'}>— Choisir un projet —</option>${projOpts(pSel)}<option value="__new" ${pSel==='__new'?'selected':''}>+ Nouveau projet…</option></select></label>
+   <label>Statut<select id="qf-statut">${Object.entries(QSTAT).map(([k,v])=>`<option value="${k}" ${base.statut===k?'selected':''}>${v}</option>`).join('')}</select></label></div>
+   <div id="qf-newp" ${pSel==='__new'?'':'hidden'}><div class="fg" style="margin:10px 0 0"><label>Nom du nouveau projet<input id="qf-np" value="${esc(guessName)}"></label><label>Catégorie<select id="qf-nc">${CATS.map(c=>`<option>${c}</option>`).join('')}</select></label><label>Budget prévu (€)<input id="qf-nb" placeholder="0"></label></div></div></fieldset>
+  <fieldset><legend>Fournisseur</legend><div class="fg" style="margin:0"><label>Nom<input id="qf-fnom" list="suplist" value="${esc(F.nom)}" onchange="qfSup(this.value)"></label><label>Métier<input id="qf-fmetier" value="${esc(F.metier)}"></label></div>
+   <details ${ex?'':'open'}><summary>Coordonnées ${ex?'(fournisseur déjà connu)':''}</summary><div class="fg" style="margin:0"><label>Contact<input id="qf-fcontact" value="${esc(F.contact)}"></label><label>Téléphone<input id="qf-ftel" value="${esc(F.tel)}"></label><label>Email<input id="qf-femail" value="${esc(F.email)}"></label><label>SIRET<input id="qf-fsiret" value="${esc(F.siret)}"></label><label style="grid-column:1/-1">Adresse<input id="qf-fadr" value="${esc(F.adresse)}"></label></div></details></fieldset>
+  <fieldset><legend>Devis</legend><div class="fg" style="margin:0"><label>N° de devis<input id="qf-numero" value="${esc(base.numero)}"></label><label style="grid-column:span 2">Objet<input id="qf-objet" value="${esc(base.objet)}"></label>
+   <label>Date<input type="date" id="qf-date" value="${base.date||''}"></label><label>Valable jusqu'au<input type="date" id="qf-validite" value="${base.validite||''}"></label><label>Délai (jours)<input id="qf-delai" value="${base.delai||''}"></label>
+   <label>Acompte (%)<input id="qf-acompte" value="${base.acomptePct||''}"></label><label>Ton ressenti<select id="qf-ressenti">${[0,1,2,3,4,5].map(n=>`<option value="${n}" ${base.ressenti==n?'selected':''}>${n?'★'.repeat(n):'—'}</option>`).join('')}</select></label></div></fieldset>
+  <fieldset><legend>Lignes</legend><div id="qf-lines" class="tw"></div><div class="row" style="margin-top:8px;justify-content:space-between"><button class="btn sm ghost" onclick="qfAdd()">+ Ligne</button><div class="row"><label class="ck"><input type="checkbox" id="qf-ttcmode" ${QF.ttcMode?'checked':''} onchange="QF.ttcMode=this.checked;qfLines()">Prix des lignes en TTC</label><label class="ck"><input type="checkbox" id="qf-auto" ${QF.auto?'checked':''} onchange="QF.auto=this.checked;if(this.checked)qfCalc()">Totaux calculés depuis les lignes</label></div></div>
+   <div class="fg" style="margin:12px 0 0"><label>Total TTC (saisissable)<input id="qf-ttc" class="n" value="${fN(base.ttc)}" oninput="qfTot('ttc')" style="font-weight:700;color:var(--am)"></label><label>Taux de TVA<select id="qf-taux" onchange="qfTot('taux')">${[20,10,5.5,2.1,0].map(t=>`<option value="${t}" ${t===qfRate(base)?'selected':''}>${String(t).replace('.',',')} %</option>`).join('')}</select></label><label>Total HT<input id="qf-ht" class="n" value="${fN(base.ht)}" oninput="qfTot('ht')"></label><label>TVA<input id="qf-tva" class="n" value="${fN(base.tva)}" oninput="qfTot('tva')"></label></div><div class="muted small" style="margin-top:6px">Tape le TTC : le HT et la TVA se recalculent avec le taux choisi.</div></div></fieldset>
+  <fieldset><legend>Garantie & notes</legend><div class="fg" style="margin:0"><label>Garantie<input id="qf-gtype" value="${esc(base.garantie?.type||'')}" placeholder="Décennale, 2 ans pièces…"></label><label>Fin de garantie<input type="date" id="qf-gfin" value="${base.garantie?.fin||''}"></label></div><label style="margin-top:10px">Notes<textarea id="qf-notes">${esc(base.notes||'')}</textarea></label>
+   ${P.raw?`<details><summary>Texte extrait du document</summary><pre style="white-space:pre-wrap;font-size:11.5px;color:var(--mu);max-height:220px;overflow:auto;background:var(--p2);padding:10px;border-radius:8px">${esc(P.raw.slice(0,8000))}</pre></details>`:''}</fieldset>
+  <div class="foot"><button class="btn ghost" onclick="closeModal()">${file?'Ignorer ce fichier':'Annuler'}</button><button class="btn" onclick="qfSave()">Enregistrer le devis</button></div>
+  </div></div>`,'wide');qfLines()})}
+function qfLines(){const L=QF.q.lignes,tm=QF.ttcMode,k=l=>tm?1+num(l.tva)/100:1;$('#qf-lines').innerHTML=L.length?`<table class="tbl"><thead><tr><th>Désignation</th><th style="width:70px">Qté</th><th style="width:70px">Unité</th><th style="width:105px">PU ${tm?'TTC':'HT'}</th><th style="width:66px">TVA %</th><th class="r" style="width:105px">Total ${tm?'TTC':'HT'}</th><th style="width:30px"></th></tr></thead><tbody>${L.map((l,i)=>`<tr><td><input value="${esc(l.des)}" oninput="qfL(${i},'des',this.value)"></td><td><input class="n" value="${esc(String(l.qte).replace('.',','))}" oninput="qfL(${i},'qte',this.value)"></td><td><input value="${esc(l.unite||'')}" oninput="qfL(${i},'unite',this.value)"></td><td><input class="n" id="qfp-${i}" value="${fN(num(l.pu)*k(l))}" oninput="qfL(${i},'pu',this.value)"></td><td><input class="n" value="${String(l.tva).replace('.',',')}" oninput="qfL(${i},'tva',this.value)"></td><td class="r" id="qfl-${i}">${eur(num(l.qte)*num(l.pu)*k(l))}</td><td><button class="x" onclick="qfDel(${i})">✕</button></td></tr>`).join('')}</tbody></table>`:'<div class="muted small">Aucune ligne détectée — tu peux en ajouter, ou ne saisir que le total TTC ci-dessous.</div>'}
+function qfL(i,k,v){const l=QF.q.lignes[i],tm=QF.ttcMode;
+  if(k==='pu')l.pu=tm?num(v)/(1+num(l.tva)/100):v;
+  else if(k==='tva'&&tm){const ttcPu=num($('#qfp-'+i).value);l.tva=v;l.pu=ttcPu/(1+num(v)/100)}
+  else l[k]=v;
+  $('#qfl-'+i).textContent=eur(num(l.qte)*num(l.pu)*(tm?1+num(l.tva)/100:1));if(QF.auto)qfCalc()}
+function qfAdd(){QF.q.lignes.push({id:uid(),des:'',qte:1,unite:'',pu:0,tva:20});qfLines()}
+function qfDel(i){QF.q.lignes.splice(i,1);qfLines();if(QF.auto)qfCalc()}
+function qfCalc(){const L=QF.q.lignes;const ht=L.reduce((a,l)=>a+num(l.qte)*num(l.pu),0),tv=L.reduce((a,l)=>a+num(l.qte)*num(l.pu)*num(l.tva)/100,0);$('#qf-ht').value=fN(ht);$('#qf-tva').value=fN(tv);$('#qf-ttc').value=fN(ht+tv)}
+function qfRate(q){const ht=num(q.ht),tv=num(q.tva);const r=ht?tv/ht*100:(q.lignes&&q.lignes[0]?num(q.lignes[0].tva):20);return[20,10,5.5,2.1,0].reduce((a,b)=>Math.abs(b-r)<Math.abs(a-r)?b:a,20)}
+function qfManual(){if(QF.auto){QF.auto=false;$('#qf-auto').checked=false}}
+function qfTot(f){qfManual();const t=num($('#qf-taux').value)/100;
+  if(f==='ttc'||f==='taux'){const ttc=num($('#qf-ttc').value),ht=ttc/(1+t);$('#qf-ht').value=fN(ht);$('#qf-tva').value=fN(ttc-ht)}
+  else if(f==='ht'){const ht=num($('#qf-ht').value);$('#qf-tva').value=fN(ht*t);$('#qf-ttc').value=fN(ht*(1+t))}
+  else if(f==='tva'){$('#qf-ttc').value=fN(num($('#qf-ht').value)+num($('#qf-tva').value))}}
+function qfSup(v){const s=S.suppliers.find(x=>norm(x.nom)===norm(v));if(!s)return;['contact','tel','email','siret','metier'].forEach(k=>{const el=$('#qf-f'+k);if(el)el.value=s[k]||''});$('#qf-fadr').value=s.adresse||''}
+async function qfSave(){const g=id=>$('#qf-'+id).value;let pid=g('projet');
+  if(!pid)return toast('Choisis un projet (ou crée-en un)','bad');
+  if(pid==='__new'){const p=newProject({nom:g('np').trim()||g('objet')||'Nouveau projet',categorie:g('nc'),budget:num(g('nb'))});pid=p.id}
+  const fnom=g('fnom').trim();let fid='';
+  if(fnom){const f=findOrCreateSup({nom:fnom,contact:g('fcontact'),tel:g('ftel'),email:g('femail'),adresse:g('fadr'),siret:g('fsiret'),metier:g('fmetier')});
+    ['contact','tel','email','siret','metier'].forEach(k=>{const v=g('f'+k);if(v)f[k]=v});if(g('fadr'))f.adresse=g('fadr');fid=f.id}
+  const q=QF.q;Object.assign(q,{projetId:pid,fournisseurId:fid,numero:g('numero'),objet:g('objet'),date:g('date'),validite:g('validite'),delai:num(g('delai'))||'',acomptePct:num(g('acompte'))||'',ressenti:+g('ressenti'),
+    statut:g('statut'),ht:num(g('ht')),tva:num(g('tva')),ttc:num(g('ttc')),garantie:{type:g('gtype'),fin:g('gfin')},notes:g('notes'),
+    lignes:q.lignes.filter(l=>String(l.des).trim()||num(l.pu)).map(l=>({id:l.id||uid(),des:String(l.des).trim(),qte:num(l.qte)||1,unite:l.unite||'',pu:num(l.pu),tva:num(l.tva)}))});
+  if(q.ttc&&!q.ht&&!q.tva){q.ht=r2(q.ttc/1.2);q.tva=r2(q.ttc-q.ht)}
+  if(QF.file){const id=uid();await DB.putFile(id,{name:QF.file.name,type:QF.file.type,blob:QF.file});q.fileId=id;q.fileName=QF.file.name}
+  if(q.statut==='accepte'){q.dateAccept=q.dateAccept||today();if(!(q.echeances||[]).length&&num(q.acomptePct))buildEch(q,num(q.acomptePct))}
+  const i=S.quotes.findIndex(x=>x.id===q.id);if(i>=0)S.quotes[i]=q;else S.quotes.push(q);
+  await save();const r=QF.res;if(QF.url)URL.revokeObjectURL(QF.url);QF=null;$('#modal').classList.remove('on');r(q);toast('Devis enregistré')}
+
+/* =========================================================
+   IMPORT & EXTRACTION
+   ========================================================= */
+function openImport(pid){pid=pid||(R.v==='projet'?R.id:'');
+  const ai=S.settings.apiKey&&S.settings.useAI;
+  openModal(`<h2>Importer des devis</h2><p class="muted small">PDF, photo ou capture d'écran. ${ai?'Lecture par <b>IA Claude</b> (la plus fiable).':'Lecture locale : texte du PDF, et reconnaissance de texte (OCR) pour les photos et scans. Pour une lecture bien plus fiable, ajoute ta clé API Claude dans Paramètres.'}</p>
+  <label class="drop" id="drop" ondragover="event.preventDefault();this.classList.add('ov')" ondragleave="this.classList.remove('ov')" ondrop="event.preventDefault();event.stopPropagation();runImport([...event.dataTransfer.files],'${pid}')"><input type="file" multiple accept=".pdf,image/*" onchange="runImport([...this.files],'${pid}')"><div style="font-size:34px">⬆</div><b>Glisse tes devis ici</b>ou clique pour choisir des fichiers</label>
+  ${pid?`<p class="small muted">Destination proposée : <b>${esc(proj(pid)?.nom||'')}</b> (modifiable à l'étape suivante).</p>`:''}`)}
+async function runImport(files,pid){files=files.filter(f=>/pdf|image\//.test(f.type)||/\.(pdf|jpe?g|png|webp|heic)$/i.test(f.name));
+  if(!files.length)return toast('Formats acceptés : PDF, JPG, PNG','bad');closeModal();let last=null,n=0;
+  for(const [i,f] of files.entries()){let P;try{P=await analyze(f,files.length>1?` (${i+1}/${files.length})`:'')}catch(e){P={source:'échec de lecture : '+e.message}}busy(false);
+    const q=await openQuoteForm({file:f,parsed:P,projetId:pid||''});if(q){last=q;n++;pid=q.projetId}}
+  if(last){if(n===1)go('devis1',last.id);else go('projet',last.projetId,'devis')}else render()}
+async function analyze(file,suffix){suffix=suffix||'';const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name),isImg=/^image\//.test(file.type);
+  if(S.settings.apiKey&&S.settings.useAI&&(isPdf||/image\/(jpeg|png|gif|webp)/.test(file.type))){
+    try{busy(`Lecture par l'IA de « ${file.name} »${suffix}…`);const r=await aiExtract(file,isPdf);return finalize({...r,source:'IA Claude'})}
+    catch(e){toast('IA indisponible ('+e.message+') — lecture locale','bad')}}
+  let text='',src='';
+  if(isPdf&&window.pdfjsLib){busy(`Lecture du PDF « ${file.name} »${suffix}…`);try{text=await pdfText(file);src='texte du PDF'}catch(e){}}
+  if((!text||text.replace(/\s/g,'').length<60)&&(isPdf||isImg)&&S.settings.ocr){try{text=await ocr(file,suffix);src='reconnaissance de texte (OCR)'}catch(e){toast('OCR impossible : '+e.message,'bad')}}
+  const r=parseQuote(text);r.raw=text;r.source=text.trim()?src+' + analyse automatique':'aucun texte détecté';return finalize(r)}
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('connexion requise'));document.head.appendChild(s)})}
+async function pdfText(file){const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer(),verbosity:0}).promise;const out=[];
+  for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i),tc=await pg.getTextContent(),rows=[];
+    tc.items.forEach(it=>{if(!it.str||!it.str.trim())return;const y=it.transform[5];let r=rows.find(r=>Math.abs(r.y-y)<2.5);if(!r){r={y,its:[]};rows.push(r)}r.its.push({x:it.transform[4],s:it.str,w:it.width||0})});
+    rows.sort((a,b)=>b.y-a.y).forEach(r=>{let line='',end=null;r.its.sort((a,b)=>a.x-b.x).forEach(it=>{if(end!==null){const gap=it.x-end;line+=gap>10?'   ':gap>1.2?' ':''}line+=it.s;end=it.x+it.w});out.push(line.trim())})}
+  return out.join('\n')}
+async function ocr(file,suffix){if(!window.Tesseract){busy('Chargement de la reconnaissance de texte…');await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js')}
+  const imgs=[];if(/pdf/.test(file.type)||/\.pdf$/i.test(file.name)){const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer(),verbosity:0}).promise;
+    for(let i=1;i<=Math.min(pdf.numPages,4);i++){const pg=await pdf.getPage(i),vp=pg.getViewport({scale:2.2}),c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;imgs.push(c)}}
+  else imgs.push(file);
+  let t='';for(const [i,im] of imgs.entries()){busy(`Reconnaissance du texte, page ${i+1}/${imgs.length}${suffix||''}… (peut prendre 20-40 s)`);const r=await Tesseract.recognize(im,'fra');t+=r.data.text+'\n'}return t}
+const toB64=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(f)});
+async function aiExtract(file,isPdf){const b64=await toB64(file);
+  const block=isPdf?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}:{type:'image',source:{type:'base64',media_type:file.type,data:b64}};
+  const prompt=`Tu lis un devis (ou une facture) français. Le CLIENT est ${S.settings.monNom||'le particulier'} : ne le confonds pas avec le FOURNISSEUR, qui est l'entreprise qui émet le document.
+Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, au format :
+{"fournisseur":{"nom":"","contact":"","tel":"","email":"","adresse":"","siret":"","metier":"électricité|plomberie|…"},"numero":"","objet":"résumé court des travaux","date":"AAAA-MM-JJ","validite":"AAAA-MM-JJ ou vide","delai":nombre de jours ou null,"acomptePct":nombre ou null,"garantie":{"type":"","ans":nombre ou null},"lignes":[{"des":"","qte":1,"unite":"","pu":prix unitaire HT,"tva":taux en %}],"ht":total HT,"tva":montant TVA,"ttc":total TTC}
+Règles : nombres en notation JSON (point décimal), pas de symbole €. Si la validité est exprimée en jours ("valable 30 jours"), calcule la date à partir de la date du devis. Ignore les lignes de sous-total. Champ inconnu = "" ou null.`;
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:S.settings.model||'claude-sonnet-5-5',max_tokens:4000,messages:[{role:'user',content:[block,{type:'text',text:prompt}]}]})});
+  if(!resp.ok){let m='erreur '+resp.status;try{const j=await resp.json();m=j.error?.message||m}catch(e){}throw new Error(m)}
+  const j=await resp.json(),t=(j.content||[]).map(c=>c.text||'').join(''),a=t.indexOf('{'),b=t.lastIndexOf('}');if(a<0)throw new Error('réponse illisible');return JSON.parse(t.slice(a,b+1))}
+
+/* ---------- Analyse locale du texte ---------- */
+const MOIS=['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+function findDates(s){const out=[];
+  for(const m of s.matchAll(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})\b/g)){let[,d,mo,y]=m;if(y.length===2)y='20'+y;if(+mo>=1&&+mo<=12&&+d>=1&&+d<=31&&+y>1990&&+y<2100)out.push({i:m.index,v:`${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`})}
+  for(const m of s.matchAll(/\b(\d{1,2})(?:er)?\s+(janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)\s+(\d{4})/gi)){const mi=MOIS.indexOf(m[2].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''));if(mi>=0)out.push({i:m.index,v:`${m[3]}-${String(mi+1).padStart(2,'0')}-${m[1].padStart(2,'0')}`})}
+  return out.sort((a,b)=>a.i-b.i).map(x=>x.v)}
+const NUMRE=/-?\d{1,3}(?:[ \u00a0\u202f.]\d{3})+(?:,\d{1,2})?|-?\d+(?:[.,]\d{1,2})?/g;
+const stripPct=s=>s.replace(/\d{1,2}(?:[.,]\d{1,2})?\s*%/g,' ');
+function lastAmt(s){const m=[...stripPct(s).replace(/\b\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}\b/g,' ').matchAll(NUMRE)].map(x=>num(x[0])).filter(x=>x>0);return m.length?m[m.length-1]:null}
+function findTot(L,re,not){for(let i=L.length-1;i>=0;i--){if(re.test(L[i])&&!(not&&not.test(L[i]))){let v=lastAmt(L[i].replace(re,' '));if(v==null&&L[i+1]&&!/[a-z]{4}/i.test(L[i+1]))v=lastAmt(L[i+1]);if(v!=null)return v}}return null}
+const UNIT=/^(u|un|unit[ée]s?|pce?s?|pi[eè]ces?|m|ml|m2|m²|m3|m³|h|hr|heures?|j|jours?|kg|l|ens|ensemble|ft|fft|forfait|lot)$/i;
+const BADL=/total|sous[- ]?total|t\.?v\.?a|net\s*(à|a)\s*payer|acompte|remise|escompte|page\s*\d|siret|siren|capital|iban|bic|rcs|\bape\b|naf|t[ée]l[ée]?phone|t[ée]l\s*[:.]|fax|e-?mail|@|www\.|devis\s*n|^date|validit|valable|code\s*postal|montant|r[èe]glement|conditions|p[ée]nalit|signature|bon pour accord|^\d{5}\s/i;
+function fitNums(n){n=n.filter(x=>x>0);const L=n.length;if(!L)return null;const tot=n[L-1];if(tot<=0)return null;
+  if(L>=3){for(const[q,pu]of[[n[L-3],n[L-2]],[n[0],n[L-2]]])if(q>0&&close(q*pu,tot))return{qte:q,pu,tot,ok:2}}
+  if(L>=2){const pu=n[L-2];if(close(pu,tot))return{qte:1,pu,tot,ok:1};if(pu>0){const q=tot/pu;if(q<10000&&Math.abs(q*100-Math.round(q*100))<0.5)return{qte:r2(q),pu,tot,ok:1}}
+    const q=n[L-2];if(Number.isInteger(q)&&q>0&&q<500)return{qte:q,pu:r2(tot/q),tot,ok:0}}
+  return null}
+function tailNums(clean){const tk=clean.trim().split(/\s+/);const tail=[];let j=tk.length-1,unit='';
+  for(;j>=0;j--){const t=tk[j].replace(/€|EUR/gi,'');if(t==='')continue;if(/^-?[\d.,]+$/.test(t)&&/\d/.test(t))tail.unshift(t);else if(UNIT.test(t)&&tail.length){unit=unit||t}else break}
+  if(!tail.length)return null;const des=tk.slice(0,j+1).join(' ');
+  const plain=tail.map(num);const merged=[];tail.forEach(t=>{const p=merged[merged.length-1];if(p&&/^\d{1,3}$/.test(p)&&/^\d{3}([.,]\d{1,2})?$/.test(t))merged[merged.length-1]=p+t;else merged.push(t)});
+  const mN=merged.map(num);const a=fitNums(plain),b=fitNums(mN);let best=(b&&(!a||b.ok>=a.ok))?b:a;return best?{...best,des,unit}:null}
+function parseLine(line){if(BADL.test(line))return null;let tva=null;const tm=line.match(/(\d{1,2}(?:[.,]\d{1,2})?)\s*%/);if(tm)tva=num(tm[1]);
+  const clean=stripPct(line);const cells=clean.split(/\s{3,}|\t/).map(s=>s.trim()).filter(Boolean);let r=null;
+  if(cells.length>=3){const isN=c=>/^-?[\d\s\u00a0\u202f.,]+(€|EUR)?$/i.test(c)&&/\d/.test(c);const nums=cells.filter(isN).map(num);const des=cells.filter(c=>!isN(c)&&!UNIT.test(c)).join(' ');const unit=cells.find(c=>UNIT.test(c))||'';
+    const f=fitNums(nums);if(f)r={...f,des,unit}}
+  if(!r){r=tailNums(clean);if(r&&!/€|EUR|\d[.,]\d{2}\b/i.test(line))r=null}if(!r)return null;
+  const des=r.des.replace(/^\d+[.)-]?\s+/,'').replace(/\s+/g,' ').trim();
+  if(r.ok<1&&!/€/.test(line))return null;
+  return{des,qte:r.qte,unite:r.unit||'',pu:r2(r.pu),tva}}
+const METIERS=[[/borne|irve|recharge/i,'Borne / IRVE'],[/cam[ée]ra|alarme|vid[ée]osurveillance|sonnette/i,'Sécurité / Vidéosurveillance'],[/domotique|maison connect/i,'Domotique'],[/[ée]lectri/i,'Électricité'],[/plomb|sanitaire/i,'Plomberie'],[/pompe\s*[àa]\s*chaleur|chauffag|chaudi[eè]re|po[eê]le/i,'Chauffage'],[/clim/i,'Climatisation'],[/peintur|peintre/i,'Peinture'],[/menuis|fen[eê]tre/i,'Menuiserie'],[/ma[cç]onn/i,'Maçonnerie'],[/carrel/i,'Carrelage'],[/toitur|couvreur|couverture|charpent/i,'Toiture'],[/cuisine/i,'Cuisine'],[/paysag|jardin|cl[ôo]ture|terrasse/i,'Extérieur'],[/isolation|isolant/i,'Isolation'],[/photovolta|solaire/i,'Photovoltaïque'],[/aspirateur|[ée]lectrom[ée]nager/i,'Équipement']];
+const PERSO=/^(gmail|hotmail|outlook|yahoo|orange|free|sfr|wanadoo|laposte|icloud|live|msn|neuf|bbox|aol|protonmail)$/i;
+const RE_TTC=/net\s*(?:à|a)\s*payer|(?:total|montant)\s*(?:g[ée]n[ée]ral\s*)?t\.?t\.?c\b/i, RE_HT=/(?:total|montant)\s*(?:g[ée]n[ée]ral\s*)?(?:h\.?t\.?\b|hors\s*tax\w*)/i;
+function parseQuote(text){const r={fournisseur:{},lignes:[]};if(!text||!text.trim())return r;
+  text=text.replace(/[−–](?=\s?\d)/g,'-');
+  const L=text.split(/\n/).map(s=>s.replace(/\s+$/,'')).filter(s=>s.trim());const T=L.join('\n');const me=norm(S?.settings?.monNom||'');
+  const isMe=s=>me&&norm(s).includes(me);
+  // zone client : lignes autour du nom du client ou du libellé « Client »
+  const cz=new Set();L.forEach((l,i)=>{if(isMe(l)&&i<40||/^\s*(client|destinataire|factur[ée]\s*[àa]|adress[ée]\s*[àa])\b/i.test(l))for(let k=i;k<=i+5&&k<L.length;k++)cz.add(k)});
+  const ttcIdx=(()=>{for(let i=0;i<L.length;i++)if(RE_TTC.test(L[i])&&lastAmt(L[i].replace(RE_TTC,' '))!=null)return i;return -1})();
+  // totaux : on cherche dans le bloc des totaux (avant/autour du premier « Total TTC ») avant de chercher ailleurs
+  const zone=ttcIdx>=0?L.slice(Math.max(0,ttcIdx-12),ttcIdx+1):L;
+  r.ttc=ttcIdx>=0?lastAmt(L[ttcIdx].replace(RE_TTC,' ')):findTot(L,/\bt\.?t\.?c\b/i,/h\.?t\.?\s*$/i);
+  r.ht=findTot(zone,RE_HT,/t\.?t\.?c/i)??findTot(L,RE_HT,/t\.?t\.?c/i);
+  r.tva=findTot(zone,/(?:total|montant)?\s*t\.?v\.?a\.?\b/i,/(t\.?t\.?c|\bh\.?t\b|intracom|n°|num[ée]ro|fr\d{2}|incluse)/i);
+  const rl=zone.slice().reverse().find(l=>/remises?|r[ée]ductions?/i.test(l)&&!/total\s*h|ttc/i.test(l));const rem=rl?Math.abs(([...stripPct(rl).matchAll(NUMRE)].map(x=>num(x[0])).filter(x=>x<0).pop())||0):0;if(rem)r.notes=`Remises indiquées sur le devis : ${eur(rem)}`;
+  const ds=findDates(T);const dl=L.find(l=>/date|[ée]mis|fait\s+le|du\s+\d/i.test(l)&&findDates(l).length);r.date=(dl&&findDates(dl)[0])||ds[0]||'';
+  const vl=L.find(l=>/valid|valable|expir/i.test(l));
+  if(vl){const vp=vl.slice(vl.search(/valid|valable|expir/i));const vd=findDates(vp);if(vd.length)r.validite=vd[0];else{const m=vp.match(/(\d+)\s*(jours?|j\b|mois|semaines?)/i);if(m&&r.date)r.validite=addDays(r.date,+m[1]*(/mois/i.test(m[2])?30:/sem/i.test(m[2])?7:1))}}
+  const nm=T.match(/(?:devis|proposition|offre)\s*(?:commerciale\s*)?(?:n[°ºo]\.?|num[ée]ro|r[ée]f\.?|#)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-\/_.]{1,})/i)||T.match(/\br[ée]f[ée]rence\s*(?:du\s*devis\s*)?[:\-]?\s*([A-Z0-9][A-Z0-9\-\/_.]{2,})/i)||T.match(/\b(?:n[°º]|num[ée]ro)\s*(?:de\s*devis\s*)?[:\-]?\s*([A-Z]{0,4}[\-_]?\d[A-Z0-9\-\/_.]{1,})/i);
+  if(nm&&/\d/.test(nm[1]))r.numero=nm[1].replace(/[.\-]$/,'');
+  const ob=T.match(/(?:objet|chantier|nature des travaux|d[ée]signation des travaux)\s*:\s*(.{4,90})/i);if(ob)r.objet=ob[1].trim();
+  if(!r.objet){const ti=L.findIndex((l,i)=>i<6&&/^\s*(devis|proposition|offre)\b/i.test(l));const nx=ti>=0?L[ti+1]:'';if(nx&&!cz.has(ti+1)&&nx.split(/\s+/).length>=3&&!/\d{2}[\/.]\d{2}/.test(nx)&&!/client|r[ée]f/i.test(nx))r.objet=nx.split(/\s{3,}/)[0].trim()}
+  const de=T.match(/d[ée]lai[^0-9\n]{0,45}(\d+)\s*(jours?|semaines?|mois)/i);if(de)r.delai=+de[1]*(/mois/i.test(de[2])?30:/sem/i.test(de[2])?7:1);
+  const ac=T.match(/acompte[^%\n\d]{0,45}(\d{1,2}(?:[.,]\d)?)\s*%/i)||T.match(/(\d{1,2})\s*%\s*(?:d['’]\s*)?acompte/i);if(ac)r.acomptePct=num(ac[1]);
+  const ga=T.match(/garantie\s+(d[ée]cennale|biennale|de\s+parfait\s+ach[èe]vement|(\d+)\s*ans?)/i);if(ga){const ty=ga[1].toLowerCase();r.garantie={type:'Garantie '+ga[1],ans:ga[2]?+ga[2]:/d[ée]cennale/.test(ty)?10:/biennale/.test(ty)?2:1}}
+  const F=r.fournisseur;const notCz=(re)=>{for(let i=0;i<L.length;i++){if(cz.has(i))continue;const m=L[i].match(re);if(m&&!isMe(m[0]))return m[0]}return''};
+  const sir=T.match(/\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{5})\b/);if(sir)F.siret=sir[1];
+  F.email=notCz(/[\w.+-]+@[\w-]+\.[\w.]+/)||undefined;
+  F.tel=notCz(/(?:\+33\s?|0)[1-9](?:[\s.\-]?\d{2}){4}/)||undefined;
+  // nom : forme juridique > domaine du site/email pro > première ligne d'en-tête
+  const head=L.slice(0,25);
+  const skip=(s,i)=>cz.has(i)||/devis|facture|date|page|client|t[ée]l|@|www|siret|adresse|n°|^\s*\d|objet|r[ée]f|source|validit|prix/i.test(s)||isMe(s)||s===r.objet;
+  const leg=head.find((s,i)=>!cz.has(i)&&/\b(sarl|sas|sasu|eurl|sa|ets|entreprise|soci[ée]t[ée])\b/i.test(s)&&!isMe(s)&&s.length<70);
+  const doms=[...T.matchAll(/(?:@|www\.|https?:\/\/|\b)([a-z0-9][a-z0-9-]{1,30})\.(?:com|fr|eu|net|org|io|shop|store|be|ch)\b/gi)].map(m=>m[1]).filter(d=>!PERSO.test(d)&&!isMe(d));
+  const dom=doms[0]?doms[0].charAt(0).toUpperCase()+doms[0].slice(1):'';
+  const cand=head.find((s,i)=>!skip(s,i)&&(s.match(/[a-zà-ÿ]/gi)||[]).length>=3&&s.trim().length<60);
+  const cn=cand?cand.split(/\s{3,}/)[0].replace(/^(soci[ée]t[ée]|entreprise)\s+/i,'').trim():'';
+  F.nom=leg?leg.split(/\s{3,}/)[0].replace(/^(soci[ée]t[ée]|entreprise)\s+/i,'').trim():dom?(cn&&(norm(cn).includes(norm(dom))||norm(dom).includes(norm(cn)))&&cn.length<40?cn:dom):cn;
+  const pc=head.findIndex((s,i)=>!cz.has(i)&&/\b\d{5}\s+[A-ZÀ-Ÿa-zà-ÿ]/.test(s)&&!isMe(s));
+  if(pc>=0){const prev=head[pc-1]||'';F.adresse=((!cz.has(pc-1)&&/\d+.*(rue|av|chemin|route|bd|boulevard|all[ée]e|place|impasse|zone|z\.?a|z\.?i|lieu|quai|cours)/i.test(prev)?prev.split(/\s{3,}/)[0]+', ':'')+head[pc].split(/\s{3,}/)[0]).trim()}
+  const T40=L.slice(0,45).join('\n');for(const[re,m]of METIERS)if(re.test(T40)){F.metier=m;break}
+  if(!r.objet&&F.metier)r.objet=F.metier;
+  // lignes : uniquement entre l'en-tête du tableau et le bloc des totaux
+  const HDR=l=>/(d[ée]signation|libell[ée]|article|description|prestation)/i.test(l)&&/(qt[ée]|quantit[ée]|prix|\bpu\b|montant|total)/i.test(l);
+  const hi=L.findIndex(HDR);let st=hi>=0?hi+1:0;
+  let en=L.length;for(let i=st;i<L.length;i++){if(RE_TTC.test(L[i])||RE_HT.test(L[i])||/sous[- ]?total|^\s*total\b/i.test(L[i])){en=i;break}}
+  let buf=[],fresh=true;
+  for(let i=st;i<en;i++){const l=L[i];
+    if(HDR(l)){buf=[];fresh=true;continue}
+    if(/^\s*(code|r[ée]f(?:[ée]rence)?|sku)\s*:?\s*[A-Z0-9\-_.\/]*\s*$/i.test(l)){buf=[];fresh=true;continue}
+    if(/^\s*[A-Z0-9][A-Z0-9\-_.\/]{5,}\s*$/.test(l)&&/\d/.test(l)&&/[A-Z]/.test(l)){buf=[];fresh=true;continue}
+    const x=parseLine(l);
+    if(!x){if(!BADL.test(l)&&(l.trim().split(/\s+/).length>=2||l.trim().length>=12||buf.length))buf.push(l.split(/\s{3,}/)[0].trim());continue}
+    const weak=(x.des.match(/[a-zà-ÿ]/gi)||[]).length<3||/^(code|r[ée]f|sku)\b/i.test(x.des);
+    if(buf.length&&(fresh||weak)){let d=buf[0];if(buf[1]&&(d+' '+buf[1]).length<=70)d+=' '+buf[1];x.des=d}
+    else if(weak)continue;
+    r.lignes.push(x);buf=[];fresh=false}
+  if(r.lignes.length>60)r.lignes=[];
+  r.prixTTC=/prix\s*:?\s*ttc|prix\s+ttc|ttc\s*,?\s*tva\s*\d+\s*%?\s*incluse/i.test(T);
+  return r}
+function finalize(r){r=r||{};r.fournisseur=r.fournisseur||{};
+  r.lignes=(r.lignes||[]).filter(l=>l&&(l.des||l.pu)).map(l=>({des:String(l.des||'').trim(),qte:num(l.qte)||1,unite:l.unite||'',pu:num(l.pu),tva:l.tva==null||l.tva===''?null:num(l.tva)}));
+  let ht=num(r.ht),tv=num(r.tva),tc=num(r.ttc);const sL=r.lignes.reduce((a,l)=>a+l.qte*l.pu,0);
+  if(tc&&ht&&ht>tc){const x=ht;ht=tc;tc=x}
+  if(!ht&&sL)ht=sL;if(!ht&&tc&&tv)ht=tc-tv;if(!tv&&ht&&tc)tv=tc-ht;
+  if(!tc&&ht){tv=tv||ht*0.2;tc=ht+tv}if(!ht&&tc){ht=tc/1.2;tv=tc-ht}
+  const rate=ht?tv/ht*100:20;const std=[20,10,5.5,2.1,0].reduce((a,b)=>Math.abs(b-rate)<Math.abs(a-rate)?b:a,20);
+  r.lignes.forEach(l=>{if(l.tva==null)l.tva=std});
+  if(r.lignes.length&&ht&&tc&&!close(sL,ht)&&(close(sL,tc)||r.prixTTC))r.lignes.forEach(l=>{l.pu=r2(l.pu/(1+num(l.tva)/100))});delete r.prixTTC;
+  r.ht=r2(ht);r.tva=r2(tv);r.ttc=r2(tc);
+  if(typeof r.garantie==='string')r.garantie={type:r.garantie,fin:''};
+  if(r.garantie){r.garantie.fin=r.garantie.fin||'';if(num(r.garantie.ans)&&!r.garantie.fin&&r.date){const d=new Date(r.date+'T00:00:00');d.setFullYear(d.getFullYear()+num(r.garantie.ans));r.garantie.fin=iso(d)}}
+  r.delai=num(r.delai)||'';r.acomptePct=num(r.acomptePct)||'';return r}
+
+/* =========================================================
+   FOURNISSEURS · ÉCHÉANCIER · PRIX · PARAMÈTRES
+   ========================================================= */
+function vFourn(){const rows=S.suppliers.map(f=>{const qs=S.quotes.filter(q=>q.fournisseurId===f.id);return{f,n:qs.length,e:qs.reduce((a,q)=>a+qEngage(q),0)}}).sort((a,b)=>b.e-a.e||a.f.nom.localeCompare(b.f.nom));
+  return hdr('Fournisseurs',`${S.suppliers.length} fournisseur(s)`,`<button class="btn ghost" onclick="supplierForm()">+ Nouveau fournisseur</button>`)+
+  (rows.length?`<div class="card tw"><table class="tbl"><thead><tr><th>Nom</th><th>Métier</th><th>Contact</th><th>Téléphone</th><th>Email</th><th>Avis</th><th class="r">Devis</th><th class="r">Engagé</th></tr></thead><tbody>${rows.map(({f,n,e})=>`<tr class="c" onclick="supplierForm('${f.id}')"><td><b>${esc(f.nom)}</b></td><td>${esc(f.metier||'')}</td><td>${esc(f.contact||'')}</td><td>${esc(f.tel||'')}</td><td>${esc(f.email||'')}</td><td>${stars(f.note)}</td><td class="r">${n}</td><td class="r">${eur(e)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="card empty"><p>Les fournisseurs sont créés automatiquement à l'import des devis.</p></div>`)}
+function supplierForm(id){const f=id?sup(id):{nom:'',metier:'',contact:'',tel:'',email:'',adresse:'',siret:'',note:0,avis:''};const qs=id?S.quotes.filter(q=>q.fournisseurId===id):[];
+  openModal(`<h2>${id?esc(f.nom):'Nouveau fournisseur'}</h2><div class="fg">${[['nom','Nom'],['metier','Métier'],['contact','Contact'],['tel','Téléphone'],['email','Email'],['siret','SIRET']].map(([k,l])=>`<label>${l}<input id="sf-${k}" value="${esc(f[k]||'')}"></label>`).join('')}<label style="grid-column:1/-1">Adresse<input id="sf-adresse" value="${esc(f.adresse||'')}"></label><label>Avis<select id="sf-note">${[0,1,2,3,4,5].map(n=>`<option value="${n}" ${f.note==n?'selected':''}>${n?'★'.repeat(n):'—'}</option>`).join('')}</select></label></div>
+  <label>Ton avis / remarques<textarea id="sf-avis">${esc(f.avis||'')}</textarea></label>
+  ${qs.length?`<h3 style="margin-top:16px">Historique</h3>${qs.map(q=>`<div class="al" onclick="closeModal();go('devis1','${q.id}')"><i>${chipQ(q.statut)}</i><div><b>${esc(proj(q.projetId)?.nom||'')} — ${eur(q.ttc)}</b><small>${fmtD(q.date)} · ${esc(q.objet||'')}</small></div></div>`).join('')}`:''}
+  <div class="foot">${id&&!qs.length?`<button class="btn danger" onclick="delSup('${id}')">Supprimer</button><span style="flex:1"></span>`:''}<button class="btn ghost" onclick="closeModal()">Fermer</button><button class="btn" onclick="saveSup('${id||''}')">Enregistrer</button></div>`)}
+async function saveSup(id){const v={};['nom','metier','contact','tel','email','siret','adresse','avis'].forEach(k=>v[k]=$('#sf-'+k).value.trim());v.note=+$('#sf-note').value;if(!v.nom)return toast('Nom requis','bad');
+  if(id)Object.assign(sup(id),v);else S.suppliers.push({id:uid(),...v});await save();closeModal();render();toast('Fournisseur enregistré')}
+async function delSup(id){if(!await ask('Supprimer ce fournisseur ?'))return;S.suppliers=S.suppliers.filter(s=>s.id!==id);await save();closeModal();render()}
+
+function vEch(){const l=allEch();const late=l.filter(x=>!x.e.paye&&x.e.date&&daysTo(x.e.date)<0),up=l.filter(x=>!x.e.paye&&!(x.e.date&&daysTo(x.e.date)<0)),pd=l.filter(x=>x.e.paye).reverse();
+  const s=a=>a.reduce((t,x)=>t+num(x.e.montant),0);const n30=up.filter(x=>x.e.date&&daysTo(x.e.date)<=30);
+  return hdr('Échéancier','Tous les paiements prévus et réglés')+`<div class="kpis">${kpi('En retard',s(late),late.length?'bad':'')}${kpi('Sous 30 jours',s(n30),'hl')}${kpi('À venir (total)',s(up))}${kpi('Déjà payé',s(pd),'ok')}</div>
+  ${late.length?`<section class="card" style="margin-bottom:14px"><h3 class="bad" style="color:var(--bad)">En retard</h3>${echTable(late,true)}</section>`:''}
+  <section class="card" style="margin-bottom:14px"><h3>À venir</h3>${echTable(up,true)}</section>
+  <section class="card"><h3>Payées</h3>${echTable(pd,true)}</section>`}
+
+function vPrix(){POST.push(prixRes);return hdr('Prix par ligne','Retrouve combien tu as payé un matériel ou une prestation, d\'un devis à l\'autre')+
+  `<div class="filters"><input id="pq" style="min-width:320px" placeholder="Ex. prise, câble, heure de main d'œuvre, peinture…" value="${esc(PQ)}" oninput="PQ=this.value;prixRes()"></div><div id="prix-res"></div>`}
+function prixRes(){const n=PQ.trim().toLowerCase();const out=[];S.quotes.forEach(q=>(q.lignes||[]).forEach(l=>{if(!n||l.des.toLowerCase().includes(n))out.push({q,l})}));
+  out.sort((a,b)=>a.l.des.localeCompare(b.l.des)||num(a.l.pu)-num(b.l.pu));const pus=out.map(x=>num(x.l.pu)).filter(x=>x>0);
+  $('#prix-res').innerHTML=(n&&pus.length>1?`<div class="kpis">${kpi('Prix unitaire mini',Math.min(...pus),'ok')}${kpi('Moyen',pus.reduce((a,b)=>a+b,0)/pus.length)}${kpi('Maxi',Math.max(...pus),'bad')}</div>`:'')+
+  (out.length?`<div class="card tw"><table class="tbl"><thead><tr><th>Désignation</th><th class="r">Qté</th><th>Unité</th><th class="r">PU HT</th><th class="r">TVA</th><th>Fournisseur</th><th>Projet</th><th>Date</th><th>Statut</th></tr></thead><tbody>${out.slice(0,400).map(({q,l})=>`<tr class="c" onclick="go('devis1','${q.id}')"><td>${esc(l.des)}</td><td class="r">${num(l.qte).toLocaleString('fr-FR')}</td><td>${esc(l.unite||'')}</td><td class="r"><b>${eur(l.pu)}</b></td><td class="r">${num(l.tva).toLocaleString('fr-FR')} %</td><td>${esc(sup(q.fournisseurId)?.nom||'')}</td><td>${esc(proj(q.projetId)?.nom||'')}</td><td>${fmtD(q.date)}</td><td>${chipQ(q.statut)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="card empty"><p>${n?'Aucune ligne ne correspond.':'Les lignes de tous tes devis apparaîtront ici.'}</p></div>`)}
+
+function vParams(){const st=S.settings;const inp=(k,l,t,ph)=>`<label>${l}<input ${t?`type="${t}"`:''} value="${esc(st[k])}" placeholder="${ph||''}" onchange="setSet('${k}',this.value)"></label>`;
+  return hdr('Paramètres','',' ')+`<div class="grid2"><div>
+  <section class="card" style="margin-bottom:14px"><h3>Lecture automatique des devis</h3>
+   <p class="muted small" style="margin-top:0">Sans clé : lecture locale du texte des PDF + reconnaissance de texte pour les photos (correct sur les PDF générés par logiciel, plus approximatif sur les photos). Avec ta clé API Claude : lecture bien plus fiable, y compris des photos et scans. La clé reste dans ce navigateur, sur ton PC.</p>
+   <div class="fg">${inp('monNom','Ton nom (pour ne pas te prendre pour le fournisseur)')}${inp('apiKey','Clé API Claude','password','sk-ant-…')}${inp('model','Modèle')}</div>
+   <label class="ck"><input type="checkbox" ${st.useAI?'checked':''} onchange="setSet('useAI',this.checked)">Utiliser l'IA quand une clé est renseignée</label>
+   <label class="ck" style="margin-top:6px"><input type="checkbox" ${st.ocr?'checked':''} onchange="setSet('ocr',this.checked)">Reconnaissance de texte (OCR) pour photos et scans</label></section>
+  <section class="card"><h3>Alertes & valeurs par défaut</h3><div class="fg">${inp('marge','Marge d\'imprévus par défaut (%)')}${inp('alerteValidite','Alerte validité devis (jours avant)')}${inp('relance','Relancer / décider après (jours)')}</div></section>
+  </div><div>
+  ${CLOUD.on?`<section class="card" style="margin-bottom:14px"><h3>Compte Google</h3><dl class="dl"><dt>Connecté</dt><dd><b style="font-weight:500">${esc(G.email)}</b></dd><dt>Dossier Drive</dt><dd>${G.folderId?`<a href="https://drive.google.com/drive/folders/${G.folderId}" target="_blank" rel="noopener">Devis &amp; Projets ↗</a>`:'—'}</dd><dt>Fichiers</dt><dd>${Object.keys(S.drive||{}).length} document(s) sur Drive</dd></dl><p class="muted small">Tout est enregistré automatiquement dans ton Drive : ouvre l'appli depuis n'importe quel PC ou Mac et connecte-toi avec ce compte.</p><div class="row"><button class="btn ghost" onclick="cloudSyncNow()">Synchroniser maintenant</button><button class="btn danger" onclick="cloudLogout()">Se déconnecter</button></div></section>`:''}
+  <section class="card" style="margin-bottom:14px"><h3>Sauvegarde</h3><p class="muted small" style="margin-top:0">Les données sont stockées dans ce navigateur. Fais une sauvegarde régulièrement : elle contient tout, fichiers des devis compris, et se restaure en un clic (aussi sur un autre PC).</p>
+   <div class="row"><button class="btn" onclick="exportJSON()">⬇ Sauvegarder tout</button><label class="btn ghost" style="display:inline-block;color:var(--tx)">⬆ Restaurer une sauvegarde<input type="file" hidden accept=".json" onchange="importJSON(this.files[0])"></label></div></section>
+  <section class="card" style="margin-bottom:14px"><h3>Exports</h3><div class="row"><button class="btn ghost" onclick="exportXLSX()">Exporter en Excel</button></div><p class="muted small">Pour un projet en PDF : bouton « Exporter PDF » sur la page du projet.</p></section>
+  <section class="card"><h3>Zone sensible</h3><button class="btn danger" onclick="resetAll()">Tout effacer</button></section>
+  </div></div>`}
+async function setSet(k,v){S.settings[k]=['marge','alerteValidite','relance'].includes(k)?num(v):v;await save();toast('Paramètre enregistré')}
+async function exportJSON(){busy('Préparation de la sauvegarde…');const files=[];for(const[id,f]of await DB.allFiles())files.push({id,name:f.name,type:f.type,data:await toB64(f.blob)});busy(false);
+  download(`devis-projets-sauvegarde-${today()}.json`,new Blob([JSON.stringify({app:'devis-projets',version:1,date:new Date().toISOString(),state:S,files})],{type:'application/json'}));toast('Sauvegarde téléchargée')}
+async function importJSON(file){if(!file)return;try{const d=JSON.parse(await file.text());if(!d.state)throw new Error('format');if(!await ask(`Restaurer la sauvegarde du ${new Date(d.date).toLocaleString('fr-FR')} ? Les données actuelles seront remplacées.`))return;
+  busy('Restauration…');await DB.clearFiles();for(const f of d.files||[]){const bin=atob(f.data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);await DB.putFile(f.id,{name:f.name,type:f.type,blob:new Blob([u],{type:f.type})})}
+  const dmap=S.drive||{};S=normState(d.state);S.drive=CLOUD.on?dmap:{};await save();busy(false);go('global');toast('Sauvegarde restaurée')}catch(e){busy(false);toast('Fichier de sauvegarde invalide','bad')}}
+function exportXLSX(){if(!window.XLSX)return toast('Export Excel indisponible hors connexion','bad');const wb=XLSX.utils.book_new();
+  const add=(n,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{}]),n);
+  add('Projets',S.projects.map(p=>{const s=pStats(p);return{Projet:p.nom,Catégorie:p.categorie,Statut:PSTAT[p.statut],Budget:r2(s.budget),'Marge %':num(p.marge),Engagé:r2(s.engage),Payé:r2(s.paye),'Reste à payer':r2(s.reste),Aides:r2(s.aidesTot),'Reste à charge':r2(s.rac),'Écart budget':r2(s.ecart)}}));
+  add('Devis',S.quotes.map(q=>({Projet:proj(q.projetId)?.nom||'',Fournisseur:sup(q.fournisseurId)?.nom||'',Numéro:q.numero||'',Objet:q.objet||'',Date:q.date||'',Validité:q.validite||'',Statut:QSTAT[q.statut],HT:num(q.ht),TVA:num(q.tva),TTC:num(q.ttc),Facturé:q.facture?num(q.facture.montant):'',Payé:r2(payments(q).reduce((a,x)=>a+x.montant,0))})));
+  const ln=[];S.quotes.forEach(q=>(q.lignes||[]).forEach(l=>ln.push({Projet:proj(q.projetId)?.nom||'',Fournisseur:sup(q.fournisseurId)?.nom||'',Désignation:l.des,Qté:num(l.qte),Unité:l.unite,'PU HT':num(l.pu),'TVA %':num(l.tva),'Total HT':r2(num(l.qte)*num(l.pu))})));add('Lignes',ln);
+  add('Échéances',allEch().map(({q,e})=>({Date:e.date,Projet:proj(q.projetId)?.nom||'',Fournisseur:sup(q.fournisseurId)?.nom||'',Libellé:e.libelle,Montant:num(e.montant),Payé:e.paye?'Oui':'Non','Payé le':e.datePaiement||''})));
+  add('Fournisseurs',S.suppliers.map(f=>({Nom:f.nom,Métier:f.metier,Contact:f.contact,Téléphone:f.tel,Email:f.email,SIRET:f.siret,Adresse:f.adresse,Avis:f.note||''})));
+  XLSX.writeFile(wb,`devis-projets-${today()}.xlsx`)}
+function exportProjetPDF(pid){const p=proj(pid),s=pStats(p);const w=window.open('','_blank');if(!w)return toast('Autorise les fenêtres pop-up pour exporter','bad');
+  const tr=(c)=>`<tr>${c.map((x,i)=>`<td${typeof x==='number'||i>=c.length-2&&/€/.test(x)?' class="r"':''}>${typeof x==='number'?eur(x):x}</td>`).join('')}</tr>`;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(p.nom)} — bilan</title><style>body{font:12px/1.45 Arial,sans-serif;color:#111;margin:30px}h1{margin:0}h2{font-size:14px;border-bottom:2px solid #b08a4e;padding-bottom:3px;margin-top:22px}.sub{color:#666}table{width:100%;border-collapse:collapse;margin-top:6px}th,td{border-bottom:1px solid #e3e3e3;padding:5px 6px;text-align:left}th{font-size:10px;text-transform:uppercase;color:#666}.r{text-align:right}.k{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0}.k div{border:1px solid #ddd;border-radius:6px;padding:8px}.k span{display:block;color:#666;font-size:10px;text-transform:uppercase}.k b{font-size:15px}</style></head><body>
+  <h1>${esc(p.nom)}</h1><div class="sub">${esc(p.categorie)} · ${PSTAT[p.statut]} · bilan au ${fmtD(today())}</div>
+  <div class="k">${[['Budget prévu',s.budget],['Engagé',s.engage],['Payé',s.paye],['Reste à payer',s.reste],['Aides',s.aidesTot],['Reste à charge',s.rac],['Écart au budget',s.ecart],['Budget + marge',s.budgetMarge]].map(([l,v])=>`<div><span>${l}</span><b>${eur(v)}</b></div>`).join('')}</div>
+  <h2>Devis</h2><table><tr><th>Fournisseur</th><th>Objet</th><th>Date</th><th>Statut</th><th class="r">TTC</th><th class="r">Facturé</th></tr>${s.qs.map(q=>tr([esc(sup(q.fournisseurId)?.nom||''),esc(q.objet||''),fmtD(q.date),QSTAT[q.statut],num(q.ttc),q.facture?eur(q.facture.montant):'—'])).join('')}</table>
+  <h2>Échéancier</h2><table><tr><th>Date</th><th>Fournisseur</th><th>Libellé</th><th>Payé</th><th class="r">Montant</th></tr>${allEch(s.qs).map(({q,e})=>tr([fmtD(e.date),esc(sup(q.fournisseurId)?.nom||''),esc(e.libelle||''),e.paye?'Oui ('+fmtD(e.datePaiement)+')':'Non',num(e.montant)])).join('')||'<tr><td colspan="5">—</td></tr>'}</table>
+  ${(p.aides||[]).length?`<h2>Aides</h2><table><tr><th>Aide</th><th>Statut</th><th class="r">Montant</th></tr>${p.aides.map(a=>tr([esc(a.libelle),{demandee:'À demander / demandée',accordee:'Accordée',recue:'Reçue'}[a.statut],num(a.montant)])).join('')}</table>`:''}
+  ${(p.journal||[]).length?`<h2>Journal</h2><table>${p.journal.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(j=>`<tr><td style="width:90px">${fmtD(j.date)}</td><td>${esc(j.texte)}</td></tr>`).join('')}</table>`:''}
+  <script>setTimeout(()=>print(),350)<\/script></body></html>`);w.document.close()}
+async function resetAll(){if(!await ask('Effacer TOUTES les données (projets, devis, fichiers) ?'))return;if(!await ask('Vraiment ? Pense à faire une sauvegarde avant.'))return;
+  await DB.clearFiles();S=JSON.parse(JSON.stringify(DEF));await save();go('global');toast('Données effacées')}
+
+/* =========================================================
+   GOOGLE DRIVE — version en ligne (GitHub Pages)
+   ========================================================= */
+const CLOUD={on:typeof location!=='undefined'&&/^https?:$/.test(location.protocol)&&!/^(localhost|127\.0\.0\.1)$/.test(location.hostname),
+  CLIENT_ID:'1069704452468-mh97qnfbt0n6l2jvdgl65g2g218g4uf7.apps.googleusercontent.com',EMAIL:'grazioso.julien@gmail.com',
+  SCOPE:'https://www.googleapis.com/auth/drive.file openid email',FOLDER:'Devis & Projets',FILES:'Fichiers des devis',DATA:'devis-projets-donnees.json'};
+const G={token:null,exp:0,client:null,email:'',folderId:'',filesId:'',dataId:'',remoteMod:'',saving:false,dirty:false,timer:null,pend:null,err:false};
+const TOKK='devisprojets.tok',CONSK='devisprojets.consent';
+const DAPI='https://www.googleapis.com/drive/v3/files',UAPI='https://www.googleapis.com/upload/drive/v3/files';
+function normState(x){x=x||JSON.parse(JSON.stringify(DEF));x.settings={...DEF.settings,...(x.settings||{})};['projects','quotes','suppliers'].forEach(k=>x[k]=x[k]||[]);
+  x.projects.forEach(p=>{p.aides=p.aides||[];p.journal=p.journal||[];p.docs=p.docs||[]});x.drive=x.drive||{};return x}
+function setSync(st,msg){const el=$('#sync');if(el){el.className='sync '+st;el.innerHTML=CLOUD.on?`<span class="dot"></span>${esc(msg)}`:''}}
+function gate(msg){$('#gate').classList.add('on');$('#gate-msg').innerHTML=msg||''}
+function gisReady(){return new Promise((res,rej)=>{let n=0;const t=setInterval(()=>{if(window.google?.accounts?.oauth2){clearInterval(t);res()}else if(++n>150){clearInterval(t);rej(new Error('le service de connexion Google ne répond pas'))}},100)})}
+async function initClient(){if(G.client)return;await gisReady();G.client=google.accounts.oauth2.initTokenClient({client_id:CLOUD.CLIENT_ID,scope:CLOUD.SCOPE,login_hint:CLOUD.EMAIL,callback:()=>{}})}
+function requestToken(prompt){return new Promise(async(res,rej)=>{try{await initClient()}catch(e){return rej(e)}
+  G.client.callback=r=>{if(!r||r.error)return rej(new Error(r?.error_description||r?.error||'refus'));G.token=r.access_token;G.exp=Date.now()+(Number(r.expires_in||3600)-120)*1000;
+    try{sessionStorage.setItem(TOKK,JSON.stringify({token:G.token,exp:G.exp}))}catch(e){}$('#recon').classList.remove('on');res(G.token)};
+  G.client.error_callback=e=>rej(new Error(e?.type==='popup_closed'?'fenêtre de connexion fermée':e?.type==='popup_failed_to_open'?'fenêtre de connexion bloquée par le navigateur':(e?.type||'erreur')));
+  G.client.requestAccessToken({prompt:prompt??''})})}
+async function ensureToken(){if(G.token&&Date.now()<G.exp)return G.token;if(!G.pend)G.pend=requestToken('').finally(()=>{G.pend=null});
+  try{await G.pend;if(G.token&&Date.now()<G.exp)return G.token;throw new Error('jeton')}catch(e){$('#recon').classList.add('on');throw new Error('session Google expirée')}}
+async function reconnect(){try{await requestToken('');if(G.dirty)cloudPush();toast('Reconnecté à Google')}catch(e){toast('Connexion impossible : '+e.message,'bad')}}
+async function gfetch(url,opt={},retry=true){const tok=await ensureToken();const r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+tok}});
+  if(r.status===401&&retry){G.token=null;G.exp=0;return gfetch(url,opt,false)}
+  if(!r.ok){let m='erreur '+r.status;try{const j=await r.json();m=j.error?.message||m}catch(e){}throw new Error(m)}return r}
+const qesc=v=>String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+async function dFind(name,parent,folder){const q=`name='${qesc(name)}' and trashed=false${parent?` and '${parent}' in parents`:''}${folder?" and mimeType='application/vnd.google-apps.folder'":''}`;
+  const r=await gfetch(`${DAPI}?q=${encodeURIComponent(q)}&fields=${encodeURIComponent('files(id,modifiedTime)')}&orderBy=modifiedTime%20desc&pageSize=5&spaces=drive`);return((await r.json()).files||[])[0]||null}
+async function dFolder(name,parent){const f=await dFind(name,parent,true);if(f)return f.id;
+  const r=await gfetch(DAPI+'?fields=id',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mimeType:'application/vnd.google-apps.folder',...(parent?{parents:[parent]}:{})})});return(await r.json()).id}
+async function dCreate(name,parent,blob){const fd=new FormData();fd.append('metadata',new Blob([JSON.stringify({name,parents:[parent]})],{type:'application/json'}));fd.append('file',blob);
+  return(await gfetch(UAPI+'?uploadType=multipart&fields=id,modifiedTime',{method:'POST',body:fd})).json()}
+async function dUpdate(id,blob){return(await gfetch(`${UAPI}/${id}?uploadType=media&fields=id,modifiedTime`,{method:'PATCH',headers:{'content-type':blob.type||'application/octet-stream'},body:blob})).json()}
+async function dMeta(id){return(await gfetch(`${DAPI}/${id}?fields=id,modifiedTime,trashed`)).json()}
+function dGet(id){return gfetch(`${DAPI}/${id}?alt=media`)}
+function dTrash(id){return gfetch(`${DAPI}/${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({trashed:true})})}
+async function cloudLogin(){$('#gate-msg').textContent='';let consent=false;try{consent=localStorage.getItem(CONSK)==='1'}catch(e){}
+  try{await requestToken(consent?'':'consent');try{localStorage.setItem(CONSK,'1')}catch(e){}cloudBoot()}catch(e){gate('Connexion impossible : '+esc(e.message))}}
+async function cloudBoot(){busy('Connexion à Google Drive…');
+  try{const u=await(await gfetch('https://www.googleapis.com/oauth2/v3/userinfo')).json();G.email=(u.email||'').toLowerCase();
+    if(G.email!==CLOUD.EMAIL){busy(false);const em=u.email||'inconnu';cloudLogout(true);gate(`Le compte ${esc(em)} n'est pas autorisé.<br>Connecte-toi avec ${CLOUD.EMAIL}.`);return}
+    G.folderId=await dFolder(CLOUD.FOLDER);G.filesId=await dFolder(CLOUD.FILES,G.folderId);
+    const df=await dFind(CLOUD.DATA,G.folderId);
+    if(df){G.dataId=df.id;G.remoteMod=df.modifiedTime;S=normState(await(await dGet(df.id)).json())}
+    else{S=normState(null);const r=await dCreate(CLOUD.DATA,G.folderId,new Blob([JSON.stringify(S)],{type:'application/json'}));G.dataId=r.id;G.remoteMod=r.modifiedTime}
+    await DB.set('state',S);$('#gate').classList.remove('on');setSync('ok','Synchronisé avec Drive');busy(false);render()}
+  catch(e){busy(false);gate('Connexion à Drive impossible : '+esc(e.message))}}
+function cloudQueue(){G.dirty=true;setSync('pend','Enregistrement…');clearTimeout(G.timer);G.timer=setTimeout(cloudPush,800)}
+async function cloudPush(){clearTimeout(G.timer);G.timer=null;if(!G.dataId)return;if(G.saving){G.dirty=true;return}G.saving=true;G.dirty=false;G.err=false;
+  try{const m=await dMeta(G.dataId);if(G.remoteMod&&m.modifiedTime>G.remoteMod)toast('Attention : les données avaient changé sur un autre appareil, ta version les remplace.','bad');
+    const r=await dUpdate(G.dataId,new Blob([JSON.stringify(S)],{type:'application/json'}));G.remoteMod=r.modifiedTime}
+  catch(e){G.dirty=true;G.err=true;setSync('err','Non synchronisé — nouvel essai…')}
+  finally{G.saving=false;if(G.dirty){G.timer=setTimeout(cloudPush,G.err?15000:300);if(!G.err)setSync('pend','Enregistrement…')}else setSync('ok','Synchronisé avec Drive')}}
+async function cloudSyncNow(){if(G.dirty||G.timer){await cloudPush();toast('Synchronisé')}else{await checkRemote(true)}}
+async function checkRemote(manual){if(!CLOUD.on||!G.dataId||G.dirty||G.saving||QF||!(G.token&&Date.now()<G.exp))return;
+  try{const m=await dMeta(G.dataId);if(m.modifiedTime>G.remoteMod){S=normState(await(await dGet(G.dataId)).json());G.remoteMod=m.modifiedTime;await DB.set('state',S);render();toast('Données mises à jour depuis un autre appareil')}else if(manual)toast('Tout est déjà à jour')}
+  catch(e){if(manual)toast('Synchronisation impossible : '+e.message,'bad')}}
+function cloudLogout(silent){try{sessionStorage.removeItem(TOKK)}catch(e){}if(G.token&&window.google?.accounts?.oauth2&&silent)google.accounts.oauth2.revoke(G.token,()=>{});
+  G.token=null;G.exp=0;G.dataId='';G.folderId='';G.filesId='';S=normState(null);DB.set('state',S);$('#main').innerHTML='';setSync('','');if(!silent){gate('');toast('Déconnecté')}}
+
+/* ---------- Démarrage ---------- */
+async function init(){try{await DB.open()}catch(e){document.body.innerHTML='<p style="padding:30px">Stockage local indisponible dans ce navigateur.</p>';return}
+  S=normState(CLOUD.on?null:await DB.get('state'));
+  if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  if(window.Chart){Chart.defaults.color='#9a8a76';Chart.defaults.borderColor='#f0e6d4';Chart.defaults.font.family="'Jost',sans-serif"}
+  let dc=0;const ov=$('#dropov'),free=()=>!QF&&!$('#busy').classList.contains('on')&&!$('#modal').classList.contains('on');
+  window.addEventListener('dragenter',e=>{if(e.dataTransfer?.types?.includes('Files')&&free()){dc++;ov.classList.add('on')}});
+  window.addEventListener('dragleave',()=>{if(--dc<=0){dc=0;ov.classList.remove('on')}});
+  window.addEventListener('dragover',e=>e.preventDefault());
+  window.addEventListener('drop',e=>{e.preventDefault();dc=0;ov.classList.remove('on');if(free()&&e.dataTransfer.files.length&&!(R.v==='projet'&&R.tab==='docs'))runImport([...e.dataTransfer.files],R.v==='projet'?R.id:'')});
+  window.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal').classList.contains('on')&&!QF)closeModal()});
+  if(CLOUD.on){
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkRemote()});
+    window.addEventListener('beforeunload',e=>{if(G.dirty||G.saving){e.preventDefault();e.returnValue=''}});
+    // renouvelle la session Google pendant un clic (avant expiration), pour éviter les coupures
+    document.addEventListener('click',()=>{if(G.token&&!G.pend&&G.exp-Date.now()<10*60e3){G.pend=requestToken('').catch(()=>{}).finally(()=>{G.pend=null})}},true);
+    try{const t=JSON.parse(sessionStorage.getItem(TOKK)||'null');if(t&&t.exp>Date.now()){G.token=t.token;G.exp=t.exp}}catch(e){}
+    if(G.token)cloudBoot();else gate('');return}
+  render()}
+if(typeof window!=='undefined'&&typeof document!=='undefined')window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
