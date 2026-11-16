@@ -3,7 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist'
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.js?url'
 import fontDisplay from './fonts/bricolage.woff2'
 import fontBody from './fonts/figtree.woff2'
-import { textFeatures, guessChild, guessAmount, findDuplicatePairs, matchesFor, LEVELS, pairKey } from './doublons.js'
+import { textFeatures, guessChild, guessAmount, findDuplicatePairs, matchesFor, LEVELS, pairKey, CATEGORIES, CAT, guessCategory, extractPayment, stripPayment, schoolYearOf } from './doublons.js'
+import { createPortal } from 'react-dom'
 import * as cloud from './cloud.js'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker
@@ -23,7 +24,8 @@ const fmtDate  = (d) => new Date(d).toLocaleDateString('fr-FR')
 const fmtLong  = (d) => new Date(d).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })
 const today    = () => new Date().toISOString().split('T')[0]
 const num      = (v) => parseFloat(String(v || '0').replace(',', '.')) || 0
-const halfOf   = (inv) => inv.amount / 2
+const shareOf  = (inv) => (inv.share === undefined || inv.share === null || inv.share === '' ? 50 : Number(inv.share))
+const halfOf   = (inv) => inv.amount * shareOf(inv) / 100        // ta part de la facture
 const sumHalf  = (list) => list.reduce((s, i) => s + halfOf(i), 0)
 const plural   = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`
 
@@ -69,10 +71,15 @@ async function analyseFile(bytes, mime = 'application/pdf') {
         text += content.items.map(i => i.str).join(' ') + '\n'
       }
       pdf.destroy()
-    } catch { /* PDF scanné ou illisible : seule l'empreinte sert */ }
+    } catch { /* PDF scanné ou illisible */ }
+  }
+  // Scan ou photo sans texte : Google Drive en fait la lecture (OCR)
+  let ocr = false
+  if (text.replace(/\s/g, '').length < 40) {
+    try { const t = await cloud.ocrText(bytes, mime); if (t && t.trim()) { text = t; ocr = true } } catch {}
   }
   const f = textFeatures(text)
-  return { fp: { hash, tokens: [...f.tokens], nums: [...f.nums] }, text }
+  return { fp: { hash, tokens: [...f.tokens], nums: [...f.nums], ...(ocr ? { ocr: true } : {}) }, text }
 }
 const featOf = (fp) => fp ? { hash: fp.hash, tokens: new Set(fp.tokens || []), nums: new Set(fp.nums || []) } : null
 
@@ -96,6 +103,9 @@ const PATHS = {
   link:    'M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1',
   note:    'M5 5h14v10l-4 4H5zM15 19v-4h4',
   copy:    'M8 8h11v11H8zM5 16V5h11',
+  card:    'M3 6h18v12H3zM3 10h18M7 15h3',
+  print:   'M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z',
+  clip:    'M16 7l-7.5 7.5a2.5 2.5 0 0 0 3.5 3.5L20 10a4.5 4.5 0 0 0-6.4-6.4L5.5 11.7a6.5 6.5 0 0 0 9.2 9.2L19 16.5',
   gear:    'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   spark:   'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18',
 }
@@ -260,8 +270,56 @@ function PdfViewer({ data, height = 480 }) {
 }
 
 // ─── Formulaire facture (import + modification) ─────────────────────────────
+function CategorySelect({ value, onChange, allLabel }) {
+  return (
+    <div className="select-wrap">
+      {value && CAT[value] && <i className="cat-dot" style={{ background: CAT[value].color }}/>}
+      <select className="input select" value={value} onChange={e => onChange(e.target.value)} aria-label="Catégorie">
+        <option value="">{allLabel || 'Choisir…'}</option>
+        {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+      </select>
+    </div>
+  )
+}
+function CategoryTag({ id }) {
+  const c = CAT[id]
+  if (!c) return null
+  return <span className="cat-tag"><i className="cat-dot" style={{ background: c.color }}/>{c.label}</span>
+}
+function Secret({ value }) {
+  const [show, setShow] = useState(false)
+  return (
+    <span className="secret">
+      <code>{show ? value : '••••••••'}</code>
+      <button type="button" className="mini-btn" onClick={() => setShow(v => !v)}>{show ? 'Masquer' : 'Afficher'}</button>
+    </span>
+  )
+}
+function CopyBtn({ value, label }) {
+  const [done, setDone] = useState(false)
+  return (
+    <button type="button" className="mini-btn" onClick={async () => { try { await navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1500) } catch {} }}>
+      {done ? 'Copié' : (label || 'Copier')}
+    </button>
+  )
+}
+function PayInfo({ inv }) {
+  if (!inv.payUrl && !inv.payLogin && !inv.payPassword) return null
+  return (
+    <div className="pay-info">
+      {inv.payUrl && <a className="pay-link" href={inv.payUrl} target="_blank" rel="noreferrer"><Icon name="card" size={15}/>Payer en ligne</a>}
+      {inv.payLogin && <span className="pay-item">Identifiant <code>{inv.payLogin}</code><CopyBtn value={inv.payLogin}/></span>}
+      {inv.payPassword && <span className="pay-item">Mot de passe <Secret value={inv.payPassword}/><CopyBtn value={inv.payPassword}/></span>}
+    </div>
+  )
+}
+
 function InvoiceFields({ form, setForm, showStatus }) {
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  const [showPwd, setShowPwd] = useState(false)
+  const share = form.share === '' || form.share === undefined ? '50' : String(form.share)
+  const shareMode = share === '50' || share === '100' ? share : 'autre'
+  const part = num(form.amount) * num(share) / 100
   return (
     <div className="form-grid">
       <Field label="Description" wide>
@@ -271,10 +329,25 @@ function InvoiceFields({ form, setForm, showStatus }) {
         <Segmented ariaLabel="Enfant" value={form.child} onChange={v => setForm({ ...form, child: v })}
           options={[{ value:'NINA', label:<ChildLabel child="NINA" size={22}/>, cls:'nina' }, { value:'NOAH', label:<ChildLabel child="NOAH" size={22}/>, cls:'noah' }, { value:'', label:'Aucun' }]}/>
       </Field>
-      <Field label="Montant total" hint={form.amount ? `Ta part : ${fmt(num(form.amount) / 2)}` : 'Ta part est calculée automatiquement (moitié).'}>
+      <Field label="Catégorie">
+        <CategorySelect value={form.category || ''} onChange={v => setForm({ ...form, category: v })}/>
+      </Field>
+      <Field label="Montant total" hint={form.amount ? `Ta part : ${fmt(part)}` : undefined}>
         <div className="input-euro">
           <input className="input" type="number" step="0.01" min="0" value={form.amount} onChange={set('amount')} placeholder="0,00"/>
           <span>€</span>
+        </div>
+      </Field>
+      <Field label="Ta part" wide>
+        <div className="share-row">
+          <Segmented ariaLabel="Ta part" value={shareMode} onChange={v => setForm({ ...form, share: v === 'autre' ? (shareMode === 'autre' ? share : '30') : v })}
+            options={[{ value: '50', label: 'Moitié' }, { value: '100', label: 'Tout pour moi' }, { value: 'autre', label: 'Autre' }]}/>
+          {shareMode === 'autre' && (
+            <div className="input-euro share-input">
+              <input className="input" type="number" min="0" max="100" step="1" value={share} onChange={set('share')} aria-label="Pourcentage"/>
+              <span>%</span>
+            </div>
+          )}
         </div>
       </Field>
       <Field label="Date de réception">
@@ -292,8 +365,20 @@ function InvoiceFields({ form, setForm, showStatus }) {
             options={[{ value:'en_cours', label:'À payer', cls:'pending' }, { value:'paye', label:'Payée', cls:'paid' }]}/>
         </Field>
       )}
+      <Field label="Lien de paiement" wide>
+        <input className="input" type="url" value={form.payUrl || ''} onChange={set('payUrl')} placeholder="https://…"/>
+      </Field>
+      <Field label="Identifiant">
+        <input className="input" value={form.payLogin || ''} onChange={set('payLogin')} autoComplete="off"/>
+      </Field>
+      <Field label="Mot de passe">
+        <div className="input-euro">
+          <input className="input" type={showPwd ? 'text' : 'password'} value={form.payPassword || ''} onChange={set('payPassword')} autoComplete="new-password"/>
+          <button type="button" className="mini-btn in-input" onClick={() => setShowPwd(v => !v)}>{showPwd ? 'Masquer' : 'Afficher'}</button>
+        </div>
+      </Field>
       <Field label="Commentaire" wide>
-        <textarea className="input" rows={3} value={form.comment} onChange={set('comment')} placeholder="Lien de paiement, identifiant, contexte…"/>
+        <textarea className="input" rows={2} value={form.comment} onChange={set('comment')} placeholder="Contexte, période, remarque…"/>
       </Field>
     </div>
   )
@@ -364,8 +449,11 @@ function ImportCheck({ state, matches, guess, virByInvoice, onView }) {
       ) : (
         <div className="check-box ok"><Icon name="check" size={16} stroke={2.4}/>Aucun doublon : cette facture n’est pas encore enregistrée.</div>
       )}
-      {(guess?.child || guess?.amount) && (
-        <p className="guess"><Icon name="spark" size={15}/>Lu dans le PDF : {[guess.child && CHILDREN[guess.child].label, guess.amount && fmt(guess.amount)].filter(Boolean).join(', ')}. Vérifie avant d’enregistrer.</p>
+      {(guess?.child || guess?.amount || guess?.category || guess?.pay?.url || guess?.pay?.login) && (
+        <p className="guess"><Icon name="spark" size={15}/>{guess.ocr ? 'Lu dans le scan' : 'Lu dans le PDF'} : {[
+          guess.child && CHILDREN[guess.child].label, guess.amount && fmt(guess.amount), guess.category && CAT[guess.category]?.label,
+          (guess.pay?.url || guess.pay?.login) && 'infos de paiement',
+        ].filter(Boolean).join(', ')}. Vérifie avant d’enregistrer.</p>
       )}
     </>
   )
@@ -394,6 +482,23 @@ function VirementModal({ title, form, setForm, invoices, onCancel, onSubmit, tog
             </div>
           </Field>
           <Field label="Note"><input className="input" value={form.note} onChange={set('note')} placeholder="Ex : payé sur le site de la cantine"/></Field>
+          <Field label="Justificatif (capture, reçu…)">
+            {form.proof || (form.proofFileId && !form.removeProof) ? (
+              <div className="proof-row">
+                <Icon name="clip" size={16}/>
+                <span>{form.proof ? form.proof.name : 'Justificatif enregistré dans Drive'}</span>
+                <button type="button" className="mini-btn" onClick={() => setForm({ ...form, proof: null, removeProof: !!form.proofFileId })}>Retirer</button>
+              </div>
+            ) : (
+              <label className="proof-pick">
+                <Icon name="clip" size={16}/>Joindre un fichier
+                <input type="file" accept="application/pdf,image/*" hidden onChange={async e => {
+                  const f = e.target.files[0]; e.target.value = ''
+                  if (f) setForm({ ...form, proof: { bytes: new Uint8Array(await f.arrayBuffer()), mime: f.type || 'application/pdf', name: f.name }, removeProof: false })
+                }}/>
+              </label>
+            )}
+          </Field>
 
           <div className="balance">
             <div><span>Virement</span><strong>{fmt(amount)}</strong></div>
@@ -448,7 +553,7 @@ function VirementModal({ title, form, setForm, invoices, onCancel, onSubmit, tog
 // ─── Graphique mensuel (SVG) ─────────────────────────────────────────────────
 function MonthChart({ data, virByMonth }) {
   const W = 760, H = 220, padL = 8, padB = 28, padT = 16
-  const max = Math.max(1, ...data.map(d => d.total / 2), ...virByMonth)
+  const max = Math.max(1, ...data.map(d => d.part), ...virByMonth)
   const colW = (W - padL * 2) / 12
   const barW = Math.min(30, colW * 0.46)
   const y = (v) => H - padB - (v / max) * (H - padB - padT)
@@ -460,7 +565,7 @@ function MonthChart({ data, virByMonth }) {
       <line x1={0} x2={W} y1={H - padB} y2={H - padB} className="chart-base"/>
       {data.map((d, i) => {
         const cx = padL + colW * i + colW / 2
-        const paid = d.paid / 2, pending = d.pending / 2
+        const paid = d.paid, pending = d.pending
         return (
           <g key={i}>
             <title>{`${MONTHS_FR[i]} — payé ${fmt(paid)}, à payer ${fmt(pending)}, virements ${fmt(virByMonth[i])}`}</title>
@@ -542,8 +647,117 @@ function Migration({ onRestore, onStartEmpty }) {
   )
 }
 
+// ─── Relevé imprimable ───────────────────────────────────────────────────────
+function Releve({ invoices, virements, onClose }) {
+  const now = new Date()
+  const calYears = [...new Set([...invoices, ...virements].map(x => new Date(x.date).getFullYear()))].sort((a, b) => b - a)
+  const schYears = [...new Set(invoices.map(i => schoolYearOf(i.date)))].sort((a, b) => b - a)
+  const [mode, setMode]   = useState('civile')
+  const [cy, setCy]       = useState(calYears[0] || now.getFullYear())
+  const [sy, setSy]       = useState(schYears[0] || schoolYearOf(now))
+  const [from, setFrom]   = useState(`${now.getFullYear()}-01-01`)
+  const [to, setTo]       = useState(today())
+  const [child, setChild] = useState('tous')
+
+  const range = mode === 'civile' ? [`${cy}-01-01`, `${cy}-12-31`]
+    : mode === 'scolaire' ? [`${sy}-09-01`, `${sy + 1}-08-31`] : [from, to]
+  const inRange = (d) => d >= range[0] && d <= range[1]
+  const invs = invoices.filter(i => inRange(i.date) && (child === 'tous' || i.child === child)).sort((a, b) => a.date.localeCompare(b.date))
+  const ids = new Set(invs.map(i => i.id))
+  const virs = virements.filter(v => inRange(v.date) && (child === 'tous' || v.invoiceIds.some(id => ids.has(id)) || !v.invoiceIds.length)).sort((a, b) => a.date.localeCompare(b.date))
+  const virOf = {}
+  virements.forEach(v => v.invoiceIds.forEach(id => { if (!virOf[id]) virOf[id] = v }))
+  const total = invs.reduce((s, i) => s + i.amount, 0)
+  const part = sumHalf(invs), paid = sumHalf(invs.filter(i => i.status === 'paye'))
+  const virTotal = virs.reduce((s, v) => s + v.amount, 0)
+  const periodLabel = mode === 'civile' ? `Année ${cy}` : mode === 'scolaire' ? `Année scolaire ${sy}-${sy + 1}` : `Du ${fmtDate(from)} au ${fmtDate(to)}`
+  const who = child === 'tous' ? 'Nina et Noah' : CHILDREN[child].label
+
+  const doc = (
+    <div className="releve">
+      <header className="rl-head">
+        <div>
+          <h1>Relevé des factures</h1>
+          <p>{who} · {periodLabel}</p>
+        </div>
+        <p className="rl-date">Édité le {fmtLong(new Date())}</p>
+      </header>
+      <div className="rl-sum">
+        <div><span>Total des factures</span><strong>{fmt(total)}</strong></div>
+        <div><span>Ma part</span><strong>{fmt(part)}</strong></div>
+        <div><span>Réglé</span><strong>{fmt(paid)}</strong></div>
+        <div><span>Reste à régler</span><strong>{fmt(part - paid)}</strong></div>
+        <div><span>Virements émis</span><strong>{fmt(virTotal)}</strong></div>
+      </div>
+      <h2>Factures ({invs.length})</h2>
+      {invs.length === 0 ? <p className="rl-empty">Aucune facture sur cette période.</p> : (
+        <table className="rl-table">
+          <thead><tr><th>Date</th><th>Enfant</th><th>Facture</th><th>Catégorie</th><th className="r">Montant</th><th className="r">Ma part</th><th>Statut</th></tr></thead>
+          <tbody>
+            {invs.map(i => (
+              <tr key={i.id}>
+                <td>{fmtDate(i.date)}</td>
+                <td>{CHILDREN[i.child]?.label || '–'}</td>
+                <td>{i.description}{i.invoiceNumber ? <small>N° {i.invoiceNumber}</small> : null}</td>
+                <td>{CAT[i.category]?.label || '–'}</td>
+                <td className="r">{fmt(i.amount)}</td>
+                <td className="r">{fmt(halfOf(i))}{shareOf(i) !== 50 ? <small>{shareOf(i)} %</small> : null}</td>
+                <td>{i.status === 'paye' ? (virOf[i.id] ? `Réglée (virement du ${fmtDate(virOf[i.id].date)})` : 'Réglée') : 'À régler'}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot><tr><td colSpan={4}>Total</td><td className="r">{fmt(total)}</td><td className="r">{fmt(part)}</td><td/></tr></tfoot>
+        </table>
+      )}
+      <h2>Virements ({virs.length})</h2>
+      {virs.length === 0 ? <p className="rl-empty">Aucun virement sur cette période.</p> : (
+        <table className="rl-table">
+          <thead><tr><th>Date</th><th className="r">Montant</th><th>Note</th><th>Factures réglées</th></tr></thead>
+          <tbody>
+            {virs.map(v => (
+              <tr key={v.id}>
+                <td>{fmtDate(v.date)}</td>
+                <td className="r">{fmt(v.amount)}</td>
+                <td>{v.note || '–'}</td>
+                <td>{v.invoiceIds.map(id => invoices.find(i => i.id === id)).filter(Boolean).map(i => `${i.description}${i.child ? ' (' + CHILDREN[i.child]?.label + ')' : ''}`).join(' ; ') || '–'}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot><tr><td>Total</td><td className="r">{fmt(virTotal)}</td><td colSpan={2}/></tr></tfoot>
+        </table>
+      )}
+    </div>
+  )
+
+  return (
+    <>
+      <Modal title="Relevé" onClose={onClose} width={980}>
+        <div className="modal-pad releve-opts">
+          <Segmented ariaLabel="Période" value={mode} onChange={setMode} options={[{ value: 'civile', label: 'Année civile' }, { value: 'scolaire', label: 'Année scolaire' }, { value: 'perso', label: 'Dates choisies' }]}/>
+          {mode === 'civile' && <Segmented ariaLabel="Année" value={cy} onChange={setCy} options={(calYears.length ? calYears : [cy]).map(y => ({ value: y, label: String(y) }))}/>}
+          {mode === 'scolaire' && <Segmented ariaLabel="Année scolaire" value={sy} onChange={setSy} options={(schYears.length ? schYears : [sy]).map(y => ({ value: y, label: `${y}-${y + 1}` }))}/>}
+          {mode === 'perso' && <div className="date-range"><input className="input" type="date" value={from} onChange={e => setFrom(e.target.value)} aria-label="Du"/><span>au</span><input className="input" type="date" value={to} onChange={e => setTo(e.target.value)} aria-label="Au"/></div>}
+          <Segmented ariaLabel="Enfant" value={child} onChange={setChild} options={[{ value: 'tous', label: 'Les deux' }, { value: 'NINA', label: 'Nina', cls: 'nina' }, { value: 'NOAH', label: 'Noah', cls: 'noah' }]}/>
+        </div>
+        <div className="releve-preview">{doc}</div>
+        <div className="modal-foot">
+          <span className="foot-hint">Dans la fenêtre d’impression, choisis « Enregistrer au format PDF ».</span>
+          <button className="btn ghost" onClick={onClose}>Fermer</button>
+          <button className="btn primary" onClick={() => window.print()}><Icon name="print"/>Imprimer ou enregistrer en PDF</button>
+        </div>
+      </Modal>
+      {createPortal(<div className="print-root">{doc}</div>, document.body)}
+    </>
+  )
+}
+
 // ─── Application ─────────────────────────────────────────────────────────────
-const EMPTY_FORM = { description:'', amount:'', date:'', invoiceNumber:'', editionDate:'', child:'', comment:'', status:'en_cours' }
+const EMPTY_FORM = { description:'', amount:'', date:'', invoiceNumber:'', editionDate:'', child:'', comment:'', status:'en_cours', category:'', share:'50', payUrl:'', payLogin:'', payPassword:'' }
+const formToFields = (f) => ({
+  description: f.description, amount: num(f.amount), date: f.date, invoiceNumber: f.invoiceNumber, editionDate: f.editionDate,
+  child: f.child, comment: f.comment, category: f.category || '', share: f.share === '' ? 50 : num(f.share),
+  payUrl: (f.payUrl || '').trim(), payLogin: (f.payLogin || '').trim(), payPassword: f.payPassword || '',
+})
 
 export default function App() {
   // phase : 'boot' (démarrage) → 'gate' (connexion) → 'loading' → 'migrate' (1re fois) → 'ready'
@@ -576,6 +790,11 @@ export default function App() {
   const [confirmDeleteVirement, setConfirmDeleteVirement] = useState(null)
 
   const [ignored,      setIgnored]      = useState([])
+  const [queue,        setQueue]        = useState([])     // fichiers en attente d'import
+  const queueRef = useRef([])
+  queueRef.current = queue
+  const [filterCat,    setFilterCat]    = useState('')
+  const [showReleve,   setShowReleve]   = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [settingsMsg,  setSettingsMsg]  = useState('')
 
@@ -704,6 +923,24 @@ export default function App() {
     })()
   }, [invoices, phase])
 
+  // Mise à niveau des anciennes factures : catégorie devinée, infos de paiement sorties du commentaire
+  useEffect(() => {
+    if (phase !== 'ready') return
+    const need = invoices.some(i => !i.payParsed || i.category === undefined)
+    if (!need) return
+    markDirty()
+    setInvoices(list => list.map(i => {
+      let out = i
+      if (i.category === undefined) out = { ...out, category: guessCategory(i.description, i.comment, i.invoiceNumber, i.name, (i.fp?.tokens || []).join(' ')) }
+      if (!i.payParsed) {
+        const p = extractPayment(i.comment)
+        out = { ...out, payParsed: true }
+        if (p.url || p.login || p.password) out = { ...out, payUrl: i.payUrl || p.url, payLogin: i.payLogin || p.login, payPassword: i.payPassword || p.password, comment: stripPayment(i.comment, p) }
+      }
+      return out
+    }))
+  }, [invoices, phase])
+
   // ── factures ──
   const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp'
   const openFile = async (file) => {
@@ -715,16 +952,56 @@ export default function App() {
     setImporting({ key, bytes, mime, name: file.name, check: 'analysing' })
     setFormData({ ...EMPTY_FORM, description: file.name.replace(/\.(pdf|jpe?g|png|webp)$/i, '').replace(/[-_]/g, ' '), date: today() })
     const { fp, text } = await analyseFile(bytes, mime)
-    const guess = { child: guessChild(text), amount: guessAmount(text) }
+    const pay = extractPayment(text)
+    const guess = { child: guessChild(text), amount: guessAmount(text), category: guessCategory(file.name, text), pay, ocr: !!fp.ocr }
     setImporting(cur => cur && cur.key === key ? { ...cur, fp, feat: featOf(fp), guess, check: 'done' } : cur)
-    setFormData(f => ({ ...f, child: f.child || guess.child, amount: f.amount || (guess.amount ? String(guess.amount) : '') }))
+    setFormData(f => ({ ...f,
+      child: f.child || guess.child,
+      amount: f.amount || (guess.amount ? String(guess.amount) : ''),
+      category: f.category || guess.category,
+      payUrl: f.payUrl || pay.url, payLogin: f.payLogin || pay.login, payPassword: f.payPassword || pay.password,
+    }))
   }
-  const handleFile = (e) => { openFile(e.target.files[0]); e.target.value = '' }
-  const handleDrop = (e) => {
-    e.preventDefault(); setDragging(false)
-    const files = [...e.dataTransfer.files]
-    openFile(files.find(f => f.type === 'application/pdf') || files.find(f => isImage(f.type)) || files[0])
+  const okFile = (f) => f && (f.type === 'application/pdf' || isImage(f.type) || /\.pdf$/i.test(f.name))
+  const startFiles = (files) => {
+    const list = [...files].filter(okFile)
+    if (!list.length) { if (files.length) notify('Choisis un PDF ou une photo (JPG, PNG).', 'err'); return }
+    if (importing) { setQueue(q => [...q, ...list]); notify(`${plural(list.length, 'fichier')} ajouté${list.length > 1 ? 's' : ''} à la file`); return }
+    setQueue(list.slice(1))
+    openFile(list[0])
   }
+  const nextInQueue = () => {
+    const q = queueRef.current
+    if (!q.length) return
+    setQueue(q.slice(1))
+    setTimeout(() => openFile(q[0]), 50)
+  }
+  const cancelImport = () => { setImporting(null); nextInQueue() }
+  const handleFile = (e) => { startFiles(e.target.files); e.target.value = '' }
+  const handleDrop = (e) => { e.preventDefault(); setDragging(false); startFiles(e.dataTransfer.files) }
+
+  // Fichiers partagés depuis le téléphone (« Partager » → Factures), déposés par le service worker
+  useEffect(() => {
+    if (phase !== 'ready' || !('caches' in window)) return
+    ;(async () => {
+      try {
+        const cache = await caches.open('share-inbox')
+        const reqs = await cache.keys()
+        if (!reqs.length) return
+        const files = []
+        for (const r of reqs) {
+          const res = await cache.match(r)
+          const blob = await res.blob()
+          const name = decodeURIComponent(res.headers.get('x-name') || 'facture')
+          files.push(new File([blob], name, { type: blob.type }))
+          await cache.delete(r)
+        }
+        if (location.search.includes('share')) history.replaceState(null, '', location.pathname)
+        setTab('factures')
+        startFiles(files)
+      } catch {}
+    })()
+  }, [phase])
   const submitImport = async () => {
     if (!formData.amount || !formData.date || !formData.description || busy) return
     const id = Date.now()
@@ -734,16 +1011,13 @@ export default function App() {
     try {
       const { id: fileId } = await cloud.uploadFile(new Blob([importing.bytes], { type: importing.mime }), fileName, ['Factures', formData.date.slice(0, 4), childName])
       const newInv = {
-        id, name: importing.name,
-        description: formData.description, amount: num(formData.amount),
-        date: formData.date, invoiceNumber: formData.invoiceNumber,
-        editionDate: formData.editionDate, child: formData.child,
-        comment: formData.comment, status: 'en_cours',
+        id, name: importing.name, ...formToFields(formData), status: 'en_cours', payParsed: true,
         fileId, fileName, mime: importing.mime, fp: importing.fp,
       }
       persist([...invoices, newInv].sort(byDateDesc))
       setImporting(null)
       notify('Facture enregistrée dans Drive')
+      nextInQueue()
     } catch (e) {
       notify('Envoi impossible : ' + e.message + '. La facture n’a pas été enregistrée.', 'err')
     } finally { setBusy('') }
@@ -762,50 +1036,68 @@ export default function App() {
     notify('Facture supprimée (le fichier est dans la corbeille de Drive)')
   }
   const openEdit = (inv) => {
-    setEditForm({ description: inv.description, amount: String(inv.amount), date: inv.date, invoiceNumber: inv.invoiceNumber || '', editionDate: inv.editionDate || '', status: inv.status, child: inv.child || '', comment: inv.comment || '' })
+    setEditForm({ description: inv.description, amount: String(inv.amount), date: inv.date, invoiceNumber: inv.invoiceNumber || '', editionDate: inv.editionDate || '', status: inv.status, child: inv.child || '', comment: inv.comment || '',
+      category: inv.category || '', share: String(shareOf(inv)), payUrl: inv.payUrl || '', payLogin: inv.payLogin || '', payPassword: inv.payPassword || '' })
     setEditingInvoice(inv)
   }
   const submitEdit = () => {
     if (!editForm.amount || !editForm.date || !editForm.description) return
-    persist(invoices.map(inv => inv.id === editingInvoice.id ? {
-      ...inv, description: editForm.description, amount: num(editForm.amount), date: editForm.date,
-      invoiceNumber: editForm.invoiceNumber, editionDate: editForm.editionDate, status: editForm.status,
-      child: editForm.child, comment: editForm.comment,
-    } : inv).sort(byDateDesc))
+    persist(invoices.map(inv => inv.id === editingInvoice.id ? { ...inv, ...formToFields(editForm), status: editForm.status } : inv).sort(byDateDesc))
     setEditingInvoice(null)
     notify('Modifications enregistrées')
   }
 
   // ── virements ──
   const openAddVirement = (preselect = []) => {
-    setVirementForm({ date: today(), amount: preselect.length ? sumHalf(invoices.filter(i => preselect.includes(i.id))).toFixed(2) : '', note: '', invoiceIds: preselect })
+    setVirementForm({ date: today(), amount: preselect.length ? sumHalf(invoices.filter(i => preselect.includes(i.id))).toFixed(2) : '', note: '', invoiceIds: preselect, proof: null, proofFileId: '', proofMime: '', removeProof: false })
     setAddingVirement(true)
   }
   const openEditVirement = (v) => {
-    setVirementForm({ date: v.date, amount: String(v.amount), note: v.note || '', invoiceIds: [...v.invoiceIds] })
+    setVirementForm({ date: v.date, amount: String(v.amount), note: v.note || '', invoiceIds: [...v.invoiceIds], proof: null, proofFileId: v.proofFileId || '', proofMime: v.proofMime || '', removeProof: false })
     setEditingVirement(v)
   }
   const toggleVirInvoice = (id) => {
     setVirementForm(f => ({ ...f, invoiceIds: f.invoiceIds.includes(id) ? f.invoiceIds.filter(x => x !== id) : [...f.invoiceIds, id] }))
   }
-  const submitVirement = () => {
-    if (!virementForm.amount || !virementForm.date) return
-    const vir = { id: Date.now(), date: virementForm.date, amount: num(virementForm.amount), note: virementForm.note, invoiceIds: virementForm.invoiceIds }
-    persist(invoices.map(inv => virementForm.invoiceIds.includes(inv.id) ? { ...inv, status: 'paye' } : inv))
-    persistV([...virements, vir].sort(byDateDesc))
-    setAddingVirement(false)
-    notify('Virement enregistré')
+  // Envoie le justificatif choisi (s'il y en a un) et renvoie { proofFileId, proofMime }
+  const saveProof = async (f, oldId) => {
+    if (f.proof) {
+      const name = `${f.date} - virement ${num(f.amount).toFixed(2)} €.${extOf(f.proof.mime)}`
+      const { id } = await cloud.uploadFile(new Blob([f.proof.bytes], { type: f.proof.mime }), name, ['Justificatifs', f.date.slice(0, 4)])
+      if (oldId) cloud.trashFile(oldId).catch(() => {})
+      return { proofFileId: id, proofMime: f.proof.mime }
+    }
+    if (f.removeProof && oldId) { cloud.trashFile(oldId).catch(() => {}); return { proofFileId: '', proofMime: '' } }
+    return oldId ? { proofFileId: oldId, proofMime: f.proofMime } : {}
   }
-  const submitEditVirement = () => {
-    if (!virementForm.amount || !virementForm.date) return
-    const updated = virements.map(v => v.id === editingVirement.id ? { ...v, date: virementForm.date, amount: num(virementForm.amount), note: virementForm.note, invoiceIds: virementForm.invoiceIds } : v).sort(byDateDesc)
-    const allLinked = new Set(updated.flatMap(v => v.invoiceIds))
-    persist(invoices.map(inv => allLinked.has(inv.id) ? { ...inv, status: 'paye' } : inv))
-    persistV(updated)
-    setEditingVirement(null)
-    notify('Virement mis à jour')
+  const submitVirement = async () => {
+    if (!virementForm.amount || !virementForm.date || busy) return
+    setBusy(virementForm.proof ? 'Envoi du justificatif dans Drive…' : '')
+    try {
+      const proof = await saveProof(virementForm, '')
+      const vir = { id: Date.now(), date: virementForm.date, amount: num(virementForm.amount), note: virementForm.note, invoiceIds: virementForm.invoiceIds, ...proof }
+      persist(invoices.map(inv => virementForm.invoiceIds.includes(inv.id) ? { ...inv, status: 'paye' } : inv))
+      persistV([...virements, vir].sort(byDateDesc))
+      setAddingVirement(false)
+      notify('Virement enregistré')
+    } catch (e) { notify('Envoi impossible : ' + e.message, 'err') } finally { setBusy('') }
+  }
+  const submitEditVirement = async () => {
+    if (!virementForm.amount || !virementForm.date || busy) return
+    setBusy(virementForm.proof ? 'Envoi du justificatif dans Drive…' : '')
+    try {
+      const proof = await saveProof(virementForm, editingVirement.proofFileId || '')
+      const updated = virements.map(v => v.id === editingVirement.id ? { ...v, date: virementForm.date, amount: num(virementForm.amount), note: virementForm.note, invoiceIds: virementForm.invoiceIds, ...proof } : v).sort(byDateDesc)
+      const allLinked = new Set(updated.flatMap(v => v.invoiceIds))
+      persist(invoices.map(inv => allLinked.has(inv.id) ? { ...inv, status: 'paye' } : inv))
+      persistV(updated)
+      setEditingVirement(null)
+      notify('Virement mis à jour')
+    } catch (e) { notify('Envoi impossible : ' + e.message, 'err') } finally { setBusy('') }
   }
   const deleteVirement = (id) => {
+    const v = virements.find(x => x.id === id)
+    if (v?.proofFileId) cloud.trashFile(v.proofFileId).catch(() => {})
     persistV(virements.filter(v => v.id !== id))
     setConfirmDeleteVirement(null)
     notify('Virement supprimé')
@@ -894,14 +1186,15 @@ export default function App() {
   const getMonthly = (y) => MONTHS_FR.map((_, idx) => {
     const month = invoices.filter(inv => { const d = new Date(inv.date); return d.getFullYear() === y && d.getMonth() === idx })
     const total = month.reduce((s, i) => s + i.amount, 0)
-    const paid  = month.filter(i => i.status === 'paye').reduce((s, i) => s + i.amount, 0)
-    return { total, paid, pending: total - paid, count: month.length }
+    const part  = sumHalf(month)
+    const paid  = sumHalf(month.filter(i => i.status === 'paye'))
+    return { total, part, paid, pending: part - paid, count: month.length }
   })
   const virMonthly = (y) => MONTHS_FR.map((_, idx) => virements.filter(v => { const d = new Date(v.date); return d.getFullYear() === y && d.getMonth() === idx }).reduce((s, v) => s + v.amount, 0))
 
-  const totalAll     = invoices.reduce((s, i) => s + i.amount, 0)
-  const totalPaid    = invoices.filter(i => i.status === 'paye').reduce((s, i) => s + i.amount, 0)
-  const totalPending = totalAll - totalPaid
+  const partAll      = sumHalf(invoices)
+  const partPaid     = sumHalf(invoices.filter(i => i.status === 'paye'))
+  const partPending  = partAll - partPaid
   const totalVir     = virements.reduce((s, v) => s + v.amount, 0)
   const pendingInvs  = invoices.filter(i => i.status === 'en_cours')
 
@@ -909,7 +1202,8 @@ export default function App() {
   const filtered = invoices.filter(inv =>
     (filterStatus === 'tous' || inv.status === filterStatus) &&
     (filterChild === 'tous' || inv.child === filterChild) &&
-    (!q || [inv.description, inv.invoiceNumber, inv.comment, inv.name].some(t => (t || '').toLowerCase().includes(q)))
+    (!filterCat || (inv.category || '') === filterCat) &&
+    (!q || [inv.description, inv.invoiceNumber, inv.comment, inv.name, CAT[inv.category]?.label].some(t => (t || '').toLowerCase().includes(q)))
   )
   const groups = useMemo(() => {
     const g = []
@@ -971,7 +1265,7 @@ export default function App() {
 
         <div className="ledger">
           <span className="ledger-label">Il te reste à payer</span>
-          <span className={`ledger-big${totalPending === 0 ? ' zero' : ''}`}>{fmt(totalPending / 2)}</span>
+          <span className={`ledger-big${partPending < 0.005 ? ' zero' : ''}`}>{fmt(partPending)}</span>
           <span className="ledger-sub">{pendingInvs.length === 0 ? 'Tout est réglé.' : `${plural(pendingInvs.length, 'facture')} en attente`}</span>
           {pendingInvs.length > 0 && (
             <button className="ledger-btn" onClick={() => { setTab('virement'); openAddVirement(pendingInvs.map(i => i.id)) }}>
@@ -979,8 +1273,8 @@ export default function App() {
             </button>
           )}
           <dl className="ledger-lines">
-            <div><dt>Ta part totale</dt><dd>{fmt(totalAll / 2)}</dd></div>
-            <div><dt>Déjà payé</dt><dd>{fmt(totalPaid / 2)}</dd></div>
+            <div><dt>Ta part totale</dt><dd>{fmt(partAll)}</dd></div>
+            <div><dt>Déjà payé</dt><dd>{fmt(partPaid)}</dd></div>
             <div><dt>Virements émis</dt><dd>{fmt(totalVir)}</dd></div>
           </dl>
         </div>
@@ -1000,7 +1294,7 @@ export default function App() {
         onDragOver={e => { if (tab === 'factures') { e.preventDefault(); setDragging(true) } }}
         onDragLeave={e => { if (e.currentTarget === e.target) setDragging(false) }}
         onDrop={e => tab === 'factures' ? handleDrop(e) : e.preventDefault()}>
-        <input ref={fileInputRef} type="file" accept={ACCEPT} onChange={handleFile} hidden/>
+        <input ref={fileInputRef} type="file" accept={ACCEPT} multiple onChange={handleFile} hidden/>
 
         {/* ══ FACTURES ══ */}
         {tab === 'factures' && (
@@ -1008,7 +1302,7 @@ export default function App() {
             <header className="page-head">
               <div>
                 <h1>Factures</h1>
-                <p>{invoices.length === 0 ? 'Aucune facture enregistrée.' : `${plural(invoices.length, 'facture')} · ta part : ${fmt(totalAll / 2)}`}</p>
+                <p>{invoices.length === 0 ? 'Aucune facture enregistrée.' : `${plural(invoices.length, 'facture')} · ta part : ${fmt(partAll)}`}</p>
               </div>
               <button className="btn primary" onClick={() => fileInputRef.current?.click()}><Icon name="upload"/>Ajouter une facture</button>
             </header>
@@ -1024,6 +1318,7 @@ export default function App() {
                 { value: 'NINA', label: <ChildLabel child="NINA"/>, count: invoices.filter(i => i.child === 'NINA').length, cls: 'nina' },
                 { value: 'NOAH', label: <ChildLabel child="NOAH"/>, count: invoices.filter(i => i.child === 'NOAH').length, cls: 'noah' },
               ]}/>
+              <div className="cat-filter"><CategorySelect value={filterCat} onChange={setFilterCat} allLabel="Toutes catégories"/></div>
               <div className="search">
                 <Icon name="search" size={16}/>
                 <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher" aria-label="Rechercher une facture"/>
@@ -1044,7 +1339,7 @@ export default function App() {
               </button>
             ) : filtered.length === 0 ? (
               <div className="empty">Aucune facture ne correspond à ces filtres.
-                <button className="link-btn" onClick={() => { setFilterStatus('tous'); setFilterChild('tous'); setQuery('') }}>Tout afficher</button>
+                <button className="link-btn" onClick={() => { setFilterStatus('tous'); setFilterChild('tous'); setFilterCat(''); setQuery('') }}>Tout afficher</button>
               </div>
             ) : (
               <div className="groups">
@@ -1062,6 +1357,7 @@ export default function App() {
                               <div className="inv-title">
                                 <span>{inv.description}</span>
                                 <ChildTag child={inv.child}/>
+                                <CategoryTag id={inv.category}/>
                                 {dupIds[inv.id] && <a href="#doublons" className={`dup-badge ${dupIds[inv.id]}`}><Icon name="copy" size={13}/>Doublon ?</a>}
                               </div>
                               <div className="inv-meta">
@@ -1070,6 +1366,7 @@ export default function App() {
                                 {inv.editionDate && <span>Émise le {fmtDate(inv.editionDate)}</span>}
                               </div>
                               {inv.comment && <p className="inv-comment">{inv.comment}</p>}
+                              {!paid && <PayInfo inv={inv}/>}
                               {vir && (
                                 <button className="inv-vir" onClick={() => { setTab('virement') }}>
                                   <Icon name="link" size={14}/>Réglée par le virement du {fmtDate(vir.date)}
@@ -1078,7 +1375,7 @@ export default function App() {
                             </div>
                             <div className="inv-amounts">
                               <span className="inv-half">{fmt(halfOf(inv))}</span>
-                              <span className="inv-total">sur {fmt(inv.amount)}</span>
+                              <span className="inv-total">{shareOf(inv) === 50 ? `sur ${fmt(inv.amount)}` : shareOf(inv) === 100 ? 'à ta charge' : `${shareOf(inv)} % de ${fmt(inv.amount)}`}</span>
                             </div>
                             <button className={`status-btn ${paid ? 'paid' : 'pending'}`} onClick={() => toggleStatus(inv.id)}
                               title={paid ? 'Remettre à payer' : 'Marquer comme payée'}>
@@ -1139,6 +1436,7 @@ export default function App() {
                                 {balanced ? 'Montant juste' : delta > 0 ? `${fmt(delta)} en plus` : `${fmt(-delta)} manquants`}
                               </span>
                             )}
+                            {v.proofFileId && <button className="mini-btn proof-btn" onClick={() => setViewingInvoice({ description: `Justificatif du virement du ${fmtDate(v.date)}`, fileId: v.proofFileId, mime: v.proofMime })}><Icon name="clip" size={14}/>Justificatif</button>}
                             <button className="icon-btn" onClick={() => openEditVirement(v)} aria-label="Modifier le virement" title="Modifier"><Icon name="edit"/></button>
                             <button className="icon-btn danger" onClick={() => setConfirmDeleteVirement(v)} aria-label="Supprimer le virement" title="Supprimer"><Icon name="trash"/></button>
                           </div>
@@ -1168,25 +1466,42 @@ export default function App() {
         {tab === 'recapitulatif' && (() => {
           const monthly = getMonthly(year)
           const virM = virMonthly(year)
-          const yt = monthly.reduce((a, d) => ({ total: a.total + d.total, paid: a.paid + d.paid, pending: a.pending + d.pending, count: a.count + d.count }), { total: 0, paid: 0, pending: 0, count: 0 })
+          const yt = monthly.reduce((a, d) => ({ total: a.total + d.total, part: a.part + d.part, paid: a.paid + d.paid, pending: a.pending + d.pending, count: a.count + d.count }), { total: 0, part: 0, paid: 0, pending: 0, count: 0 })
+          const yearInvs = invoices.filter(i => new Date(i.date).getFullYear() === year)
+          const byCat = CATEGORIES.map(c => ({ ...c, v: sumHalf(yearInvs.filter(i => (i.category || 'autre') === c.id || (!CAT[i.category] && c.id === 'autre'))) })).filter(c => c.v > 0).sort((a, b) => b.v - a.v)
+          const maxCat = Math.max(1, ...byCat.map(c => c.v))
+          // Année scolaire en cours (sept → août) et estimation d'après l'année scolaire précédente
+          const sy = schoolYearOf(new Date())
+          const inSy = (y) => invoices.filter(i => schoolYearOf(i.date) === y)
+          const cur = inSy(sy), prev = inSy(sy - 1)
+          const fc = CATEGORIES.map(c => {
+            const is = (i) => (CAT[i.category] ? i.category : 'autre') === c.id
+            const now = sumHalf(cur.filter(is)), before = sumHalf(prev.filter(is))
+            return { ...c, now, before, rest: Math.max(0, before - now) }
+          }).filter(c => c.now > 0 || c.before > 0)
+          const fcNow = fc.reduce((s, c) => s + c.now, 0), fcRest = fc.reduce((s, c) => s + c.rest, 0)
+          const prevComplete = prev.length > 0 && prev.some(i => new Date(i.date).getMonth() <= 2 || new Date(i.date).getMonth() >= 8) && prev.some(i => { const m = new Date(i.date).getMonth(); return m >= 3 && m <= 7 })
           const virY = virM.reduce((s, x) => s + x, 0)
           const byChild = (c) => invoices.filter(i => i.child === c && new Date(i.date).getFullYear() === year).reduce((s, i) => s + halfOf(i), 0)
           const nina = byChild('NINA'), noah = byChild('NOAH')
-          const pct = yt.total > 0 ? Math.round((yt.paid / yt.total) * 100) : 0
+          const pct = yt.part > 0 ? Math.round((yt.paid / yt.part) * 100) : 0
           return (
             <section>
               <header className="page-head">
                 <div>
                   <h1>Récapitulatif {year}</h1>
-                  <p>{plural(yt.count, 'facture')} · ta part : {fmt(yt.total / 2)}</p>
+                  <p>{plural(yt.count, 'facture')} · ta part : {fmt(yt.part)}</p>
                 </div>
-                <Segmented ariaLabel="Année" value={year} onChange={setYear} options={years.map(y => ({ value: y, label: String(y) }))}/>
+                <div className="head-actions">
+                  <Segmented ariaLabel="Année" value={year} onChange={setYear} options={years.map(y => ({ value: y, label: String(y) }))}/>
+                  <button className="btn primary" onClick={() => setShowReleve(true)}><Icon name="print"/>Relevé PDF</button>
+                </div>
               </header>
 
               <div className="figures">
-                <div><span>Ta part</span><strong>{fmt(yt.total / 2)}</strong></div>
-                <div className="paid"><span>Payé</span><strong>{fmt(yt.paid / 2)}</strong></div>
-                <div className="pending"><span>À payer</span><strong>{fmt(yt.pending / 2)}</strong></div>
+                <div><span>Ta part</span><strong>{fmt(yt.part)}</strong></div>
+                <div className="paid"><span>Payé</span><strong>{fmt(yt.paid)}</strong></div>
+                <div className="pending"><span>À payer</span><strong>{fmt(yt.pending)}</strong></div>
                 <div><span>Virements</span><strong>{fmt(virY)}</strong></div>
               </div>
 
@@ -1220,6 +1535,35 @@ export default function App() {
                 </div>
               </div>
 
+              <div className="split">
+                <div className="panel">
+                  <h2>Par catégorie</h2>
+                  {byCat.length === 0 ? <p className="muted-txt">Aucune facture cette année.</p> : byCat.map(c => (
+                    <div key={c.id} className="cat-row">
+                      <span className="cat-name"><i className="cat-dot" style={{ background: c.color }}/>{c.label}</span>
+                      <div className="kid-bar"><span style={{ width: `${(c.v / maxCat) * 100}%`, background: c.color }}/></div>
+                      <strong>{fmt(c.v)}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className="panel">
+                  <h2>Année scolaire {sy}-{sy + 1}</h2>
+                  <p className="fc-line"><span>Ta part depuis septembre</span><strong>{fmt(fcNow)}</strong></p>
+                  {prev.length ? <>
+                    <p className="fc-line"><span>Encore à prévoir d’ici août</span><strong className="t-pending">{fmt(fcRest)}</strong></p>
+                    <p className="fc-line total"><span>Estimation de l’année</span><strong>{fmt(fcNow + fcRest)}</strong></p>
+                    <ul className="fc-list">
+                      {fc.map(c => (
+                        <li key={c.id}><i className="cat-dot" style={{ background: c.color }}/>{c.label}
+                          <span>{fmt(c.now)}{c.rest > 0 ? <em> + {fmt(c.rest)} à venir</em> : ''}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="muted-txt">Estimation à partir de l’année scolaire {sy - 1}-{sy} ({plural(prev.length, 'facture')}){prevComplete ? '' : ', encore incomplète dans l’appli'}.</p>
+                  </> : <p className="muted-txt">Pas encore d’année scolaire précédente pour faire une estimation.</p>}
+                </div>
+              </div>
+
               <div className="panel table-panel">
                 <table className="table">
                   <thead>
@@ -1240,9 +1584,9 @@ export default function App() {
                         <tr key={i} className={d.count > 0 || virM[i] > 0 ? '' : 'muted'}>
                           <td>{MONTHS_FR[i]}</td>
                           <td className="r">{d.total > 0 ? fmt(d.total) : dash}</td>
-                          <td className="r strong">{d.total > 0 ? fmt(d.total / 2) : dash}</td>
-                          <td className="r t-paid">{d.paid > 0 ? fmt(d.paid / 2) : dash}</td>
-                          <td className="r t-pending">{d.pending > 0 ? fmt(d.pending / 2) : dash}</td>
+                          <td className="r strong">{d.part > 0 ? fmt(d.part) : dash}</td>
+                          <td className="r t-paid">{d.paid > 0 ? fmt(d.paid) : dash}</td>
+                          <td className="r t-pending">{d.pending > 0.004 ? fmt(d.pending) : dash}</td>
                           <td className="r">{virM[i] > 0 ? fmt(virM[i]) : dash}</td>
                           <td className="c">{d.count > 0 ? d.count : dash}</td>
                         </tr>
@@ -1253,9 +1597,9 @@ export default function App() {
                     <tr>
                       <td>Total {year}</td>
                       <td className="r">{fmt(yt.total)}</td>
-                      <td className="r">{fmt(yt.total / 2)}</td>
-                      <td className="r t-paid">{fmt(yt.paid / 2)}</td>
-                      <td className="r t-pending">{fmt(yt.pending / 2)}</td>
+                      <td className="r">{fmt(yt.part)}</td>
+                      <td className="r t-paid">{fmt(yt.paid)}</td>
+                      <td className="r t-pending">{fmt(yt.pending)}</td>
                       <td className="r">{fmt(virY)}</td>
                       <td className="c">{yt.count}</td>
                     </tr>
@@ -1269,12 +1613,12 @@ export default function App() {
                   <div className="years">
                     {years.map(y => {
                       const m = getMonthly(y)
-                      const t = m.reduce((s, d) => s + d.total, 0), p = m.reduce((s, d) => s + d.paid, 0)
+                      const t = m.reduce((s, d) => s + d.part, 0), p = m.reduce((s, d) => s + d.paid, 0)
                       return (
                         <button key={y} className={`year-row${y === year ? ' on' : ''}`} onClick={() => setYear(y)}>
                           <span className="year-n">{y}</span>
                           <span className="year-bar"><span style={{ width: `${t > 0 ? (p / t) * 100 : 0}%` }}/></span>
-                          <span className="year-amt">{fmt(t / 2)}</span>
+                          <span className="year-amt">{fmt(t)}</span>
                         </button>
                       )
                     })}
@@ -1288,7 +1632,7 @@ export default function App() {
 
       {/* ══ MODALE IMPORT ══ */}
       {importing && (
-        <Modal title="Nouvelle facture" onClose={() => setImporting(null)} width={1040}>
+        <Modal title={queue.length ? `Nouvelle facture (encore ${queue.length} en attente)` : 'Nouvelle facture'} onClose={cancelImport} width={1040}>
           <div className="import">
             <div className="import-pdf"><FileViewer bytes={importing.bytes} mime={importing.mime} height={560}/></div>
             <div className="import-form">
@@ -1298,7 +1642,7 @@ export default function App() {
             </div>
           </div>
           <div className="modal-foot">
-            <button className="btn ghost" onClick={() => setImporting(null)}>Annuler</button>
+            <button className="btn ghost" onClick={cancelImport}>{queue.length ? 'Passer' : 'Annuler'}</button>
             <button className={`btn ${importBlocking ? 'danger' : 'primary'}`} onClick={submitImport} disabled={!formData.amount || !formData.date || !formData.description || !!busy}>
               <Icon name="check"/>{importBlocking ? 'Enregistrer quand même' : 'Enregistrer la facture'}
             </button>
@@ -1372,6 +1716,8 @@ export default function App() {
           </div>
         </Modal>
       )}
+
+      {showReleve && <Releve invoices={invoices} virements={virements} onClose={() => setShowReleve(false)}/>}
 
       {/* ══ RÉGLAGES ══ */}
       {showSettings && (
@@ -1822,6 +2168,80 @@ textarea.input { resize: vertical; min-height: 64px; }
   .vir-modal, .split, .dup-cols { grid-template-columns: 1fr; }
   .search { margin-left: 0; }
 }
+/* ── Catégories, part, paiement ── */
+.select-wrap { position: relative; display: flex; align-items: center; }
+.select-wrap .cat-dot { position: absolute; left: 12px; pointer-events: none; }
+.select-wrap .cat-dot + .select { padding-left: 30px; }
+.select { appearance: none; padding-right: 34px; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238790AE' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+.cat-filter .select { background-color: var(--sheet); padding-top: 8px; padding-bottom: 8px; border-width: 1px; border-radius: 11px; }
+.cat-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.cat-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); padding: 1px 9px; border: 1px solid var(--rule); border-radius: 999px; line-height: 1.6; white-space: nowrap; }
+.share-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.share-input { width: 96px; }
+.mini-btn { font-size: 12px; font-weight: 700; color: var(--noah); padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; }
+.mini-btn:hover { background: var(--noah-bg); }
+.mini-btn.in-input { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
+.pay-info { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px; font-size: 13px; color: var(--ink-2); }
+.pay-link { display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: #fff; font-weight: 700; padding: 4px 12px; border-radius: 999px; text-decoration: none; }
+.pay-link:hover { background: #2A3570; }
+.pay-item { display: inline-flex; align-items: center; gap: 6px; }
+.pay-item code, .secret code { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 13px; background: var(--rule-2); padding: 1px 6px; border-radius: 5px; color: var(--ink); }
+.secret { display: inline-flex; align-items: center; gap: 4px; }
+.head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cat-row { display: grid; grid-template-columns: 150px 1fr auto; align-items: center; gap: 14px; padding: 5px 0; }
+.cat-row strong { font-variant-numeric: tabular-nums; }
+.cat-name { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.fc-line { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; color: var(--ink-2); }
+.fc-line strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.fc-line strong.t-pending { color: var(--pending); }
+.fc-line.total { border-top: 1px solid var(--rule); margin-top: 4px; padding-top: 8px; }
+.fc-line.total strong { font-family: var(--display); font-size: 20px; }
+.fc-list { list-style: none; margin: 10px 0; font-size: 13px; color: var(--ink-2); display: flex; flex-direction: column; gap: 4px; }
+.fc-list li { display: flex; align-items: center; gap: 8px; }
+.fc-list span { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink); }
+.fc-list em { font-style: normal; color: var(--pending); }
+.muted-txt { font-size: 13px; color: var(--ink-3); }
+.proof-row { display: flex; align-items: center; gap: 8px; font-size: 14px; background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px; }
+.proof-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proof-pick { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--noah); border: 1.5px dashed var(--rule); border-radius: 10px; padding: 9px 12px; cursor: pointer; align-self: flex-start; }
+.proof-pick:hover { border-color: var(--noah); background: var(--noah-bg); }
+.proof-btn { margin-right: 4px; }
+
+/* ── Relevé ── */
+.releve-opts { display: flex; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--rule-2); }
+.date-range { display: flex; align-items: center; gap: 8px; }
+.date-range .input { width: auto; }
+.releve-preview { padding: 20px 24px; background: #E9EDF5; }
+.releve-preview .releve { background: #fff; padding: 32px 36px; border-radius: 8px; box-shadow: 0 4px 16px rgba(20,26,56,.08); }
+.foot-hint { margin-right: auto; font-size: 13px; color: var(--ink-3); align-self: center; }
+.releve { color: #1D2650; font-family: var(--body); font-size: 12px; }
+.rl-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; border-bottom: 2px solid #1D2650; padding-bottom: 12px; margin-bottom: 16px; }
+.rl-head h1 { font-family: var(--display); font-size: 26px; letter-spacing: -0.02em; line-height: 1.1; }
+.rl-head p { color: #4A5378; margin-top: 4px; font-size: 13px; }
+.rl-head .rl-date { white-space: nowrap; }
+.rl-sum { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid #DDE4F0; border-radius: 8px; margin-bottom: 18px; }
+.rl-sum div { padding: 10px 12px; display: flex; flex-direction: column; }
+.rl-sum div + div { border-left: 1px solid #DDE4F0; }
+.rl-sum span { font-size: 11px; color: #4A5378; }
+.rl-sum strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.releve h2 { font-family: var(--display); font-size: 15px; margin: 16px 0 6px; }
+.rl-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rl-table th { text-align: left; font-size: 11px; color: #4A5378; border-bottom: 1px solid #1D2650; padding: 5px 6px; }
+.rl-table td { padding: 5px 6px; border-bottom: 1px solid #ECF0F7; vertical-align: top; }
+.rl-table td small { display: block; color: #8790AE; font-size: 10px; }
+.rl-table .r { text-align: right; white-space: nowrap; }
+.rl-table tfoot td { font-weight: 700; border-top: 1.5px solid #1D2650; border-bottom: none; }
+.rl-empty { color: #8790AE; }
+.print-root { display: none; }
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body { background: #fff !important; }
+  #root { display: none !important; }
+  .print-root { display: block !important; }
+  .print-root .releve { font-size: 10.5px; }
+  .rl-table tr { break-inside: avoid; }
+}
+
 /* ── Téléphone ── */
 @media (max-width: 700px) {
   body { font-size: 15px; }
@@ -1856,6 +2276,13 @@ textarea.input { resize: vertical; min-height: 64px; }
   .modal-foot { padding: 12px 16px 16px; }
   .modal-foot .btn { flex: 1; justify-content: center; }
   .drop-veil { display: none; }
+  .cat-filter { width: 100%; }
+  .head-actions { width: 100%; }
+  .head-actions .btn { width: 100%; justify-content: center; }
+  .cat-row { grid-template-columns: 110px 1fr auto; }
+  .releve-preview { padding: 10px; overflow-x: auto; }
+  .releve-preview .releve { padding: 16px; min-width: 640px; }
+  .foot-hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

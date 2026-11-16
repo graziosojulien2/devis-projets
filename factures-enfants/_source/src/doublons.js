@@ -137,3 +137,49 @@ export function matchesFor(candidate, invoices, featById) {
     .filter(Boolean)
     .sort((p, q) => LEVELS[q.level].rank - LEVELS[p.level].rank)
 }
+
+// ─── Catégories ──────────────────────────────────────────────────────────────
+export const CATEGORIES = [
+  { id: 'cantine',     label: 'Cantine',            color: '#C9822B', words: ['cantine', 'demi pension', 'demi-pension', 'restauration', 'sodexo', 'repas', 'self'] },
+  { id: 'musique',     label: 'Musique',            color: '#7A5BC7', words: ['musique', 'saxo', 'conservatoire', 'solfege', 'instrument', 'piano', 'guitare'] },
+  { id: 'activites',   label: 'Sport et activités', color: '#2E8F86', words: ['sport', 'club', 'licence', 'cotisation', 'basket', 'foot', 'danse', 'natation', 'judo', 'stage', 'centre de loisirs', 'colonie'] },
+  { id: 'scolarite',   label: 'Scolarité',          color: '#3B6FD8', words: ['college', 'lycee', 'ecole', 'scolaire', 'fournitures', 'manuel', 'voyage scolaire', 'sortie scolaire', 'assurance scolaire', 'transport scolaire'] },
+  { id: 'sante',       label: 'Santé',              color: '#C2477A', words: ['medecin', 'pharmacie', 'dentiste', 'orthodont', 'ophtalmo', 'lunettes', 'mutuelle', 'kine', 'orthophon', 'docteur'] },
+  { id: 'habillement', label: 'Vêtements',          color: '#8A6D3B', words: ['vetement', 'chaussure', 'habillement'] },
+  { id: 'autre',       label: 'Autre',              color: '#7C849E', words: [] },
+]
+export const CAT = Object.fromEntries(CATEGORIES.map(c => [c.id, c]))
+
+export function guessCategory(...texts) {
+  const t = ' ' + normText(texts.filter(Boolean).join(' ')) + ' '
+  let best = null, score = 0
+  for (const c of CATEGORIES) {
+    const weight = c.id === 'scolarite' ? 0.5 : 1   // « scolaire » apparaît aussi sur les factures de cantine
+    const s = c.words.reduce((n, w) => n + (t.includes(' ' + normText(w)) ? weight : 0), 0)
+    if (s > score) { best = c.id; score = s }
+  }
+  return best || ''
+}
+
+// ─── Infos de paiement (lien, identifiant, mot de passe) ─────────────────────
+export function extractPayment(text) {
+  const t = (text || '').replace(/\s+/g, ' ')
+  const urls = (t.match(/https?:\/\/[^\s<>"')]+/gi) || []).map(u => u.replace(/[.,;]+$/, ''))
+  const login = (t.match(/identifiant\s*:?\s*([A-Za-z0-9._@-]{3,})/i) || [])[1] || ''
+  // Un lien de paiement, pas n'importe quel lien (mentions légales, site de l'école…)
+  const url = urls.find(u => /paie|pay|regl|reglement|portail|famille|espace/i.test(u)) || (login ? urls[0] || '' : '')
+  const password = (t.match(/mot\s*de\s*passe\s*:?\s*([^\s]{3,})/i) || [])[1] || ''
+  return { url, login, password }
+}
+// Retire du commentaire ce qui a été rangé dans les champs de paiement
+export function stripPayment(comment, p) {
+  let c = comment || ''
+  if (p.password) c = c.replace(new RegExp('mot\\s*de\\s*passe\\s*:?\\s*' + escapeRe(p.password), 'i'), '')
+  if (p.login)    c = c.replace(new RegExp('identifiant\\s*:?\\s*' + escapeRe(p.login), 'i'), '')
+  if (p.url)      c = c.replace(new RegExp('(r[eè]glement par cb\\s*:?\\s*)?' + escapeRe(p.url) + '/?', 'i'), '')
+  return c.split('\n').map(l => l.replace(/^[\s\-–:·]+|[\s\-–:·]+$/g, '')).filter(Boolean).join('\n')
+}
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
+
+// ─── Année scolaire (septembre → août) ───────────────────────────────────────
+export const schoolYearOf = (date) => { const d = new Date(date); return d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1 }

@@ -256,3 +256,19 @@ export async function trashFile(id) {
 export function folderUrl() {
   return G.rootId ? `https://drive.google.com/drive/folders/${G.rootId}` : 'https://drive.google.com/drive/my-drive'
 }
+
+// Reconnaissance de texte d'un scan ou d'une photo : Google Drive convertit une copie
+// temporaire en Google Doc (OCR en français), on en récupère le texte, puis on la supprime.
+export async function ocrText(bytes, mime) {
+  if (!IS_CLOUD) return ''
+  if (!G.rootId) G.rootId = await dFolder(CONFIG.FOLDER)
+  const fd = new FormData()
+  fd.append('metadata', new Blob([JSON.stringify({ name: 'lecture-temporaire', mimeType: 'application/vnd.google-apps.document', parents: [G.rootId] })], { type: 'application/json' }))
+  fd.append('file', new Blob([bytes], { type: mime }))
+  const doc = await (await gfetch(UAPI + '?uploadType=multipart&ocrLanguage=fr&fields=id', { method: 'POST', body: fd })).json()
+  try {
+    return await (await gfetch(`${DAPI}/${doc.id}/export?mimeType=text/plain`)).text()
+  } finally {
+    gfetch(`${DAPI}/${doc.id}`, { method: 'DELETE' }).catch(() => {})
+  }
+}
