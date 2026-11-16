@@ -885,6 +885,7 @@ Analyse ce document en entier (toutes les pages). Réponds UNIQUEMENT par un obj
   "rdv_detectes": [ { "date": "AAAA-MM-JJ ou vide", "objet": "examen ou rendez-vous prévu" } ],
   "questions": [ "2 à 4 questions utiles à poser au prochain rendez-vous" ]
 }
+Une planche d'images d'échographie (plusieurs vignettes, peu ou pas de texte, tableau de mesures) est de type « Échographie » : lis les mesures visibles sur les images et dans le tableau (BIP, PC, PA, LF, poids estimé, percentiles).
 Règles : liste TOUS les résultats de laboratoire présents, un objet par analyse. Biométrie en millimètres (bip, pc, pa, lf, lcc, clarte_nucale) et pfe en grammes, en nombres. Mets null ou "" quand l'information n'existe pas. Ne mentionne pas le sexe du bébé.`;
 }
 async function analyseDocument(item, data) {
@@ -1190,7 +1191,8 @@ function DropZone({ onFiles, accept, icon, title, sub, folder }) {
 }
 
 function DocModal({ listKey, id, onClose }) {
-  const { data, save, enqueue } = useApp();
+  const { data, save, enqueue, toast } = useApp();
+  const [cutting, setCutting] = useState('');
   const doc = data[listKey].find(d => d.id === id);
   const file = useFile(doc && doc.fileId);
   const [blobURL, setBlobURL] = useState(null);
@@ -1230,6 +1232,13 @@ function DocModal({ listKey, id, onClose }) {
           {!edit && <button className="btn btn-outline btn-sm" onClick={() => { setF({ titre: doc.titre || doc.nom, date: doc.date || '', type: doc.type || 'Inconnu', notes: doc.notes || '' }); setEdit(true); }}>✎</button>}
           {edit && <button className="btn btn-sm" onClick={() => { upd(f); setEdit(false); }}>OK</button>}
           {data.apiKey && doc.status !== 'pending' && <button className="btn btn-outline btn-sm" onClick={() => enqueue([{ kind: listKey, id }])}>↻ Analyser</button>}
+          {file && file.startsWith('data:application/pdf') && listKey === 'documents' && <button className="btn btn-outline btn-sm" disabled={!!cutting} onClick={async () => {
+            const date = prompt('Date de la séance d\'écho (AAAA-MM-JJ)', doc.date || todayISO());
+            if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+            try { const n = await addEchoTilesFromPDF(file, doc.nom, date, (p, t) => setCutting(`page ${p}/${t}`)); save(d => ({ ...d, documents: d.documents.map(x => x.id === id ? { ...x, type: 'Échographie', date } : x) })); toast(n ? `${n} image${n > 1 ? 's' : ''} d'écho ajoutée${n > 1 ? 's' : ''} à la séance du ${fmtDate(date)}.` : 'Aucune image d\'écho trouvée dans ce PDF (ou déjà importées).'); }
+            catch (e) { toast('Découpe impossible : ' + e.message, 'err'); }
+            setCutting('');
+          }}>{cutting ? 'Découpe… ' + cutting : 'Extraire les images d\'écho'}</button>}
           {file && <a className="btn btn-outline btn-sm ro-ok" href={blobURL || file} download={doc.nom}>⬇</a>}
           <button className="btn btn-sm btn-danger" onClick={() => { if (confirm('Supprimer ce document ?')) { delFile(doc.fileId); save(d => ({ ...d, [listKey]: d[listKey].filter(x => x.id !== id) })); onClose(); } }}>Supprimer</button>
           <button className="btn btn-outline btn-sm ro-ok" onClick={onClose}>✕</button>
@@ -1426,6 +1435,23 @@ function EchoImportModal({ groups, onClose, onConfirm }) {
     </Modal>
   );
 }
+let saveRef = null;
+async function addEchoTilesFromPDF(pdfURL, nom, date, onProgress) {
+  const tiles = await extractEchoTiles(pdfURL, onProgress);
+  if (!tiles.length) return 0;
+  const base = nom.replace(/\.pdf$/i, '');
+  const items = [];
+  for (const t of tiles) {
+    const n = `${base}_p${t.page}_${t.index}.jpg`;
+    items.push({ id: newId(), nom: n, titre: `${base} · page ${t.page}, image ${t.index}`, date, seance: date, fileId: null, notes: '', source: nom, url: t.url });
+  }
+  let added = 0;
+  const fresh = [];
+  for (const it of items) { const { url, ...rest } = it; fresh.push({ ...rest, fileId: await putFile(url) }); }
+  saveRef(d => { const have = new Set(d.echographies.filter(e => e.seance === date).map(e => e.nom)); const keep = fresh.filter(e => !have.has(e.nom)); added = keep.length; return { ...d, echographies: [...d.echographies, ...keep], seances: { ...(d.seances || {}), [date]: { ...((d.seances || {})[date] || {}), status: 'none' } } }; });
+  await new Promise(r => setTimeout(r, 50));
+  return added || 0;
+}
 function EchosTab() {
   const { data, save, importDocs, enqueue, toast } = useApp();
   const [groups, setGroups] = useState(null);
@@ -1476,7 +1502,12 @@ function EchosTab() {
       }
     }
     save(d => ({ ...d, echographies: [...d.echographies.map(e => fixes[e.id] ? { ...e, seance: fixes[e.id], date: fixes[e.id] } : e), ...newEchos] }));
-    for (const g of gs) if (g.pdfs.length) await importDocs(g.pdfs, 'documents', g.date, true);
+    for (const g of gs) if (g.pdfs.length) {
+      await importDocs(g.pdfs, 'documents', g.date, true);
+      for (const f of g.pdfs) {
+        try { const n = await addEchoTilesFromPDF(await readAsDataURL(f), f.name, g.date, (p, t) => setBusy(`Découpe des images du PDF ${f.name} : page ${p}/${t}`)); added += n; } catch (e) { toast('Découpe impossible pour ' + f.name + ' : ' + e.message, 'err'); }
+      }
+    }
     setBusy('');
     toast(`${added} image${added > 1 ? 's' : ''} ajoutée${added > 1 ? 's' : ''}${fixed ? `, ${fixed} recalée${fixed > 1 ? 's' : ''} sur la bonne date` : ''}${skipped ? `, ${skipped} déjà présente${skipped > 1 ? 's' : ''}` : ''}.`);
     const seKeys = [...new Set(gs.map(g => g.date))];
@@ -2050,6 +2081,7 @@ function App() {
   const [more, setMore] = useState(false);
   const latest = useRef(null), timer = useRef(null), queue = useRef([]), running = useRef(false);
 
+  saveRef = upd => save(upd);
   const toast = useCallback((msg, kind) => { const id = newId(); setToasts(t => [...t, { id, msg, kind }]); setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), kind === 'err' ? 9000 : 4500); }, []);
   const cloudPush = useCallback(async () => {
     clearTimeout(cloudTimer.current);

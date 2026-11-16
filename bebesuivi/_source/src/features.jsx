@@ -644,3 +644,71 @@ const NAV = [
   ['agenda', 'Rendez-vous'], ['docs', 'Documents'], ['ordonnances', 'Ordonnances'], ['journal', 'Journal'], ['naissance', 'Naissance'],
 ];
 const BOTTOM = ['home', 'quotidien', 'echos', 'agenda'];
+
+/* ============================================================
+   PLANCHES D'ÉCHO EN PDF — découpe automatique des images
+   (pages scannées avec plusieurs vignettes en grille)
+   ============================================================ */
+async function pdfLib() {
+  const L = window.pdfjsLib;
+  if (!L) throw new Error('Lecteur PDF indisponible');
+  if (!L.GlobalWorkerOptions.workerSrc) L.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  return L;
+}
+function findTiles(gray, W, H, AR = 1.33) {
+  const hist = new Uint32Array(256); for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+  let acc = 0, bg = 255; for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= gray.length * 0.97) { bg = v; break; } }
+  const TH = bg * 0.8, minS = Math.floor(W * 0.1);
+  const segs = (mask, minLen) => { const out = []; let s = -1; for (let i = 0; i <= mask.length; i++) { const v = i < mask.length && mask[i]; if (v && s < 0) s = i; else if (!v && s >= 0) { if (i - s >= minLen) out.push([s, i]); s = -1; } } return out; };
+  const rowInk = (c0, c1, r0, r1) => { const p = []; for (let y = r0; y < r1; y++) { let n = 0; for (let x = c0; x < c1; x++) if (gray[y * W + x] < TH) n++; p.push(n / (c1 - c0)); } return p; };
+  const colInk = (c0, c1, r0, r1) => { const p = []; for (let x = c0; x < c1; x++) { let n = 0; for (let y = r0; y < r1; y++) if (gray[y * W + x] < TH) n++; p.push(n / (r1 - r0)); } return p; };
+  const rowLum = (c0, c1, r0, r1) => { const p = []; for (let y = r0; y < r1; y++) { let s = 0; for (let x = c0; x < c1; x++) s += gray[y * W + x]; p.push(s / (c1 - c0)); } return p; };
+  const colLum = (c0, c1, r0, r1) => { const p = []; for (let x = c0; x < c1; x++) { let s = 0; for (let y = r0; y < r1; y++) s += gray[y * W + x]; p.push(s / (r1 - r0)); } return p; };
+  const split = (prof, n) => { const L = prof.length, cuts = [0]; for (let k = 1; k < n; k++) { const e = Math.floor(L * k / n), r = Math.floor(L * 0.08); let best = e - r; for (let i = e - r; i < e + r; i++) if (prof[i] > prof[best]) best = i; cuts.push(best); } cuts.push(L); return cuts.slice(0, -1).map((c, i) => [c, cuts[i + 1]]); };
+  const res = [];
+  for (const [r0, r1] of segs(rowInk(0, W, 0, H).map(v => v > 0.2), minS)) {
+    for (const [c0, c1] of segs(colInk(0, W, r0, r1).map(v => v > 0.4), minS)) {
+      const w = c1 - c0, h = r1 - r0;
+      // grille la plus probable : vignettes au format ~4/3, assez grandes (≥ 30 % de la page en largeur)
+      let nr = 1, nc = 1, bestErr = Math.abs(Math.log((w / h) / AR));
+      for (let c = 1; c <= 3; c++) for (let r = 1; r <= 4; r++) {
+        if (c * r === 1 || w / c < W * 0.3 || h / r < W * 0.18) continue;
+        const err = Math.abs(Math.log((w / c) / (h / r) / AR));
+        if (err + 0.15 < bestErr) { bestErr = err; nr = r; nc = c; }
+      }
+      for (const [a, b] of split(rowLum(c0, c1, r0, r1), nr))
+        for (const [x, y] of split(colLum(c0, c1, r0 + a, r0 + b), nc)) res.push({ x: c0 + x, y: r0 + a, w: y - x, h: b - a });
+    }
+  }
+  return res;
+}
+async function extractEchoTiles(pdfDataURL, onProgress) {
+  const L = await pdfLib();
+  const bin = atob(pdfDataURL.split(',')[1]); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const pdf = await L.getDocument({ data: bytes }).promise;
+  const out = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    onProgress && onProgress(p, pdf.numPages);
+    const page = await pdf.getPage(p);
+    const vp1 = page.getViewport({ scale: 891 / page.getViewport({ scale: 1 }).width });
+    const big = 2.4;
+    const vp = page.getViewport({ scale: vp1.scale * big });
+    const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    const ctx = c.getContext('2d', { willReadFrequently: true }); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    const s = document.createElement('canvas'); s.width = Math.round(vp1.width); s.height = Math.round(vp1.height);
+    const sx = s.getContext('2d', { willReadFrequently: true }); sx.drawImage(c, 0, 0, s.width, s.height);
+    const px = sx.getImageData(0, 0, s.width, s.height).data, gray = new Uint8Array(s.width * s.height);
+    for (let i = 0; i < gray.length; i++) gray[i] = (px[i * 4] * 0.299 + px[i * 4 + 1] * 0.587 + px[i * 4 + 2] * 0.114) | 0;
+    const tiles = findTiles(gray, s.width, s.height);
+    // une page = une seule grande image et du texte autour : ce n'est pas une planche
+    if (tiles.length === 1 && tiles[0].w * tiles[0].h > s.width * s.height * 0.45) continue;
+    tiles.forEach((t, i) => {
+      const k = c.width / s.width, m = 2;
+      const o = document.createElement('canvas'); o.width = Math.round((t.w - m * 2) * k); o.height = Math.round((t.h - m * 2) * k);
+      o.getContext('2d').drawImage(c, (t.x + m) * k, (t.y + m) * k, o.width, o.height, 0, 0, o.width, o.height);
+      out.push({ page: p, index: i + 1, url: o.toDataURL('image/jpeg', 0.9) });
+    });
+  }
+  return out;
+}
