@@ -262,3 +262,9 @@
   .more-sheet { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .more-sheet button { text-align: left; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--sable-2); background: var(--lin-2); font-family: var(--sans); font-size: 15px; color: var(--encre); cursor: pointer; display: flex; align-items: center; gap: 10px; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+  /* ── Consultation (Alexandra) : lecture seule sauf l'humeur ── */
+  .ro .btn:not(.ro-ok), .ro .drop-zone, .ro .lb-edit, .ro .api-btn.api-ok { display: none !important; }
+  .ro :is(input, textarea, select, .check-row, .chip, .doc-card button):not(.ro-ok, .ro-ok *) { pointer-events: none; }
+  .ro :is(input, textarea, select):not(.ro-ok, .ro-ok *) { background: transparent; border-color: var(--sable-3); }
+  .ro .chip:not(.ro-ok *) { opacity: .75; }

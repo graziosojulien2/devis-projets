@@ -449,8 +449,43 @@ const CLOUD = {
   SCOPE: 'https://www.googleapis.com/auth/drive openid email',
   FOLDER: 'BébéSuivi', FILES: 'Fichiers', DATA: 'bebesuivi-donnees.json',
 };
-CLOUD.ALLOWED = [CLOUD.OWNER, CLOUD.PARTNER];
-const G = { token: null, exp: 0, client: null, pend: null, email: '', rootId: '', filesId: '', dataId: '', remoteMod: '', isOwner: false };
+CLOUD.ALLOWED = [CLOUD.OWNER];
+CLOUD.SCRIPT = (function () { // service « accès Alexandra » (Apps Script), transmis par le lien d'invitation
+  try {
+    const m = /[#&]acces=([^&]+)/.exec(location.hash);
+    if (m) { const u = decodeURIComponent(m[1]); if (/^https:\/\/script\.google(usercontent)?\.com\//.test(u)) localStorage.setItem('bebesuivi.script', u); history.replaceState(null, '', location.pathname + location.search); }
+    return localStorage.getItem('bebesuivi.script') || '';
+  } catch (e) { return ''; }
+})();
+CLOUD.ACCES = 'bebesuivi-acces.json';
+const VK = 'bebesuivi.vue';
+async function viewerCall(params) {
+  if (!CLOUD.SCRIPT) throw new Error('Ouvre le lien d\'invitation envoyé par Julien une première fois sur cet appareil.');
+  const res = await fetch(CLOUD.SCRIPT, { method: 'POST', headers: { 'content-type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...params, pw: G.vpw }), redirect: 'follow' });
+  if (!res.ok) throw new Error('Service indisponible (' + res.status + ')');
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error || 'Erreur');
+  return j;
+}
+async function viewerLogin(pw, remember) {
+  G.vpw = pw; G.viewer = true;
+  try { const j = await viewerCall({ a: 'data' }); G.remoteMod = j.mod;
+    try { (remember ? localStorage : sessionStorage).setItem(VK, pw); } catch (e) {}
+    return j.data;
+  } catch (e) { G.viewer = false; G.vpw = ''; try { localStorage.removeItem(VK); sessionStorage.removeItem(VK); } catch (x) {} throw e; }
+}
+function viewerSaved() { try { return localStorage.getItem(VK) || sessionStorage.getItem(VK) || ''; } catch (e) { return ''; } }
+function viewerSignOut() { G.viewer = false; G.vpw = ''; try { localStorage.removeItem(VK); sessionStorage.removeItem(VK); } catch (e) {} }
+async function sha256b64(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return btoa(String.fromCharCode(...new Uint8Array(b))); }
+async function cloudSetViewerPassword(pw) {
+  const salt = Array.from(crypto.getRandomValues(new Uint8Array(12)), x => x.toString(16).padStart(2, '0')).join('');
+  const body = new Blob([JSON.stringify({ salt, hash: await sha256b64(salt + '|' + pw), at: new Date().toISOString() })], { type: 'application/json' });
+  const ex = await dList(`name='${qesc(CLOUD.ACCES)}' and '${G.rootId}' in parents and trashed=false`);
+  if (ex.length) await dUpdate(ex[0].id, body); else await dCreate(CLOUD.ACCES, G.rootId, body);
+}
+async function cloudViewerEnabled() { const ex = await dList(`name='${qesc(CLOUD.ACCES)}' and '${G.rootId}' in parents and trashed=false`); return ex.length > 0; }
+async function cloudDisableViewer() { const ex = await dList(`name='${qesc(CLOUD.ACCES)}' and '${G.rootId}' in parents and trashed=false`); for (const x of ex) await gfetch(`${DAPI}/${x.id}`, { method: 'DELETE' }); }
+const G = { viewer: false, vpw: '', token: null, exp: 0, client: null, pend: null, email: '', rootId: '', filesId: '', dataId: '', remoteMod: '', isOwner: false };
 const TOKK = 'bebesuivi.tok', CONSK = 'bebesuivi.consent';
 const DAPI = 'https://www.googleapis.com/drive/v3/files', UAPI = 'https://www.googleapis.com/upload/drive/v3/files';
 let driveMap = {};                    // fileId interne → id du fichier dans Drive
@@ -542,8 +577,18 @@ function cloudSignOut() {
 async function cloudSave(doc) {
   const blob = new Blob([JSON.stringify({ ...doc, apiKey: '' })], { type: 'application/json' });
   if (!G.dataId) { const r = await dCreate(CLOUD.DATA, G.rootId, blob); G.dataId = r.id; G.remoteMod = r.modifiedTime; return {}; }
-  let changed = false;
+  let changed = false, merged = null;
   try { const m = await dMeta(G.dataId); changed = !!(G.remoteMod && m.modifiedTime > G.remoteMod); } catch (e) {}
+  if (changed) {
+    try {
+      const remote = await (await gfetch(`${DAPI}/${G.dataId}?alt=media`)).json();
+      const q = { ...(doc.quotidien || {}) }; let n = 0;
+      Object.entries(remote.quotidien || {}).forEach(([d, v]) => { const l = q[d] || {}; if (v.humeurAt && (!l.humeurAt || v.humeurAt > l.humeurAt)) { q[d] = { ...l, humeur: v.humeur, humeurAt: v.humeurAt, humeurPar: v.humeurPar }; n++; } });
+      if (n) { merged = { ...doc, quotidien: q }; doc = merged; }
+      const r = await dUpdate(G.dataId, new Blob([JSON.stringify({ ...doc, apiKey: '' })], { type: 'application/json' })); G.remoteMod = r.modifiedTime;
+      return { merged };
+    } catch (e) {}
+  }
   const r = await dUpdate(G.dataId, blob); G.remoteMod = r.modifiedTime;
   return { changed };
 }
@@ -588,7 +633,8 @@ async function getFile(id) {
   if (!id) return null;
   if (fileCache.has(id)) return fileCache.get(id);
   let v = await idbGet('files', id);
-  if (!v && CLOUD.on && driveMap[id]) {
+  if (!v && G.viewer) { try { v = (await viewerCall({ a: 'file', id })).url; await idbPut('files', id, v); } catch (e) { v = null; } }
+  if (!v && CLOUD.on && !G.viewer && driveMap[id]) {
     try { v = await blobToDataURL(await (await gfetch(`${DAPI}/${driveMap[id]}?alt=media`)).blob()); await idbPut('files', id, v); } catch (e) { v = null; }
   }
   if (v) fileCache.set(id, v);
@@ -1184,9 +1230,9 @@ function DocModal({ listKey, id, onClose }) {
           {!edit && <button className="btn btn-outline btn-sm" onClick={() => { setF({ titre: doc.titre || doc.nom, date: doc.date || '', type: doc.type || 'Inconnu', notes: doc.notes || '' }); setEdit(true); }}>✎</button>}
           {edit && <button className="btn btn-sm" onClick={() => { upd(f); setEdit(false); }}>OK</button>}
           {data.apiKey && doc.status !== 'pending' && <button className="btn btn-outline btn-sm" onClick={() => enqueue([{ kind: listKey, id }])}>↻ Analyser</button>}
-          {file && <a className="btn btn-outline btn-sm" href={blobURL || file} download={doc.nom}>⬇</a>}
+          {file && <a className="btn btn-outline btn-sm ro-ok" href={blobURL || file} download={doc.nom}>⬇</a>}
           <button className="btn btn-sm btn-danger" onClick={() => { if (confirm('Supprimer ce document ?')) { delFile(doc.fileId); save(d => ({ ...d, [listKey]: d[listKey].filter(x => x.id !== id) })); onClose(); } }}>Supprimer</button>
-          <button className="btn btn-outline btn-sm" onClick={onClose}>✕</button>
+          <button className="btn btn-outline btn-sm ro-ok" onClick={onClose}>✕</button>
         </div>
       </div>
       {doc.status === 'error' && <div className="alert-bar alert-warn">⚠ {doc.erreur}</div>}
@@ -1298,8 +1344,8 @@ function Lightbox({ list, index, onClose, onDelete }) {
           <span>{i + 1} / {list.length}{e.notes ? ' · ' + e.notes : ''}</span>
           <button className="lb-btn" disabled={i === list.length - 1} onClick={() => setI(i + 1)}>→</button>
           {url && <a className="lb-btn" href={url} download={e.nom || (e.titre + '.jpg')} style={{ textDecoration: 'none' }}>⬇</a>}
-          <button className="lb-btn" onClick={() => setCover(e.id === coverId ? null : e.id)}>{e.id === coverId ? '★ À la une' : '⭐ À la une'}</button>
-          <button className="lb-btn" onClick={() => { if (confirm('Supprimer cette image ?')) { onDelete(e); if (list.length <= 1) onClose(); else setI(Math.max(0, i - 1)); } }}>🗑</button>
+          <button className="lb-btn lb-edit" onClick={() => setCover(e.id === coverId ? null : e.id)}>{e.id === coverId ? '★ À la une' : '⭐ À la une'}</button>
+          <button className="lb-btn lb-edit" onClick={() => { if (confirm('Supprimer cette image ?')) { onDelete(e); if (list.length <= 1) onClose(); else setI(Math.max(0, i - 1)); } }}>🗑</button>
           <button className="lb-btn" onClick={onClose}>✕</button>
         </div>
       </div>
@@ -1778,7 +1824,7 @@ function AgendaTab() {
         {r.crResume && <div className="small" style={{ marginTop: 4, color: 'var(--euca-d)' }}>Compte rendu disponible</div>}
       </div>
       <div className="flex gap-1">
-        <button className="btn btn-outline btn-sm" onClick={() => setPrep(r)}>{r.date && r.date < today ? 'Compte rendu' : `Questions${(r.questions || []).length ? ' (' + r.questions.length + ')' : ''}`}</button>
+        <button className="btn btn-outline btn-sm ro-ok" onClick={() => setPrep(r)}>{r.date && r.date < today ? 'Compte rendu' : `Questions${(r.questions || []).length ? ' (' + r.questions.length + ')' : ''}`}</button>
         {r.statut === 'À venir' && <button className="btn btn-outline btn-sm" title="Marquer fait" onClick={() => save(d => ({ ...d, rdv: d.rdv.map(x => x.id === r.id ? { ...x, statut: 'Fait' } : x) }))}>✓</button>}
         <button className="btn btn-outline btn-sm" onClick={() => setForm({ ...empty, ...r })}>✎</button>
         <button className="btn btn-outline btn-sm" onClick={() => save(d => ({ ...d, rdv: d.rdv.filter(x => x.id !== r.id) }))}>✕</button>
@@ -1962,16 +2008,29 @@ const TABS = [
   ['agenda', '🗓️ Agenda'], ['journal', '📅 Journal'], ['ordonnances', '💊 Ordonnances'], ['prepa', '🧳 Préparation'],
 ];
 
-function Gate({ msg, onLogin, busy }) {
+function Gate({ msg, onLogin, onViewer }) {
+  const [mode, setMode] = useState('');
+  const [pw, setPw] = useState('');
+  const [remember, setRemember] = useState(true);
   return (
     <div className="gate">
       <div className="gate-card">
-        <svg width="64" height="48" viewBox="0 0 54 40" fill="none" stroke="#B08D57" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true"><path d="M27 39C27 26 25 14 18 3"/><path d="M22 14c-4-2-7-1-10 1M20 9c-3-2-6-2-8-1M24 20c-4-1-8 0-10 2"/><path d="M27 39c1-13 4-25 12-35"/><path d="M33 14c4-2 7-1 10 1M35 9c3-2 6-2 8-1M31 20c4-1 8 0 10 2"/></svg>
+        <Pampa size={64} />
         <h1 className="gate-title">BébéSuivi</h1>
-        <p className="muted">Le suivi de grossesse d'Alexandra, rangé dans Google Drive.</p>
-        <button className="btn gate-btn" onClick={onLogin} disabled={busy}>{busy ? 'Connexion…' : 'Se connecter avec Google'}</button>
-        {msg && <p className="gate-err">{msg}</p>}
-        <p className="small muted">Accès réservé à Julien et Alexandra.</p>
+        <p className="muted">Le suivi de grossesse d'Alexandra.</p>
+        {mode !== 'alex' && <>
+          <button className="btn gate-btn" onClick={onLogin}>Julien : se connecter avec Google</button>
+          <button className="btn btn-outline gate-btn" style={{ marginTop: 0 }} onClick={() => setMode('alex')}>Accès Alexandra</button>
+        </>}
+        {mode === 'alex' && <form style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={e => { e.preventDefault(); pw && onViewer(pw, remember); }}>
+          <label htmlFor="vpw" style={{ textAlign: 'left' }}>Mot de passe</label>
+          <input id="vpw" type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} autoFocus />
+          <label className="flex gap-1" style={{ alignItems: 'center', fontWeight: 400 }}><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} /> Rester connectée sur cet appareil</label>
+          <button className="btn gate-btn" type="submit" disabled={!pw}>Ouvrir le suivi</button>
+          <button type="button" className="side-link" style={{ textAlign: 'center' }} onClick={() => setMode('')}>Retour</button>
+        </form>}
+        {msg && <p className="gate-err" role="alert">{msg}</p>}
+        <p className="small muted">{mode === 'alex' ? 'Tu peux tout consulter et noter ton humeur du jour.' : 'Accès réservé à Julien et Alexandra.'}</p>
       </div>
     </div>
   );
@@ -1999,17 +2058,19 @@ function App() {
     cloudSaving.current = true; dirty.current = false;
     try {
       const r = await cloudSave(latest.current);
+      if (r.merged) { latest.current = { ...latest.current, quotidien: r.merged.quotidien }; setData(latest.current); }
       if (r.changed) toast('Les données avaient été modifiées sur un autre appareil : la version de cet écran les remplace.', 'err');
       if (dirty.current) cloudTimer.current = setTimeout(cloudPush, 500); else setSync('ok');
     } catch (e) { dirty.current = true; setSync('error'); cloudTimer.current = setTimeout(cloudPush, 15000); }
     finally { cloudSaving.current = false; }
   }, []);
   const persist = useCallback(() => {
-    if (!latest.current) return;
+    if (!latest.current || G.viewer) return;
     idbPut('kv', 'state', latest.current).catch(e => toast('⚠ Échec de l\'enregistrement local : ' + e.message, 'err'));
     if (CLOUD.on && G.rootId) { dirty.current = true; setSync('pending'); clearTimeout(cloudTimer.current); cloudTimer.current = setTimeout(cloudPush, 900); }
   }, []);
   const save = useCallback(upd => {
+    if (G.viewer) return viewerSave(upd);
     setData(prev => {
       const next = typeof upd === 'function' ? upd(prev) : upd;
       latest.current = next;
@@ -2019,6 +2080,21 @@ function App() {
       return next;
     });
   }, []);
+  function viewerSave(upd) {
+    const prev = latest.current; const next = typeof upd === 'function' ? upd(prev) : upd;
+    const t = todayISO();
+    const strip = d => { const q = { ...(d.quotidien || {}) }; if (q[t]) { const { humeur, humeurAt, humeurPar, ...rest } = q[t]; q[t] = rest; } return JSON.stringify({ ...d, quotidien: q, faits: null }); };
+    const hPrev = ((prev.quotidien || {})[t] || {}).humeur || '', hNext = ((next.quotidien || {})[t] || {}).humeur || '';
+    if (strip(prev) !== strip(next) || hPrev === hNext) { if (strip(prev) !== strip(next)) toast('Consultation seulement : seul Julien peut modifier le suivi.'); return; }
+    const q = { ...(prev.quotidien || {}), [t]: { ...((prev.quotidien || {})[t] || {}), humeur: hNext, humeurAt: new Date().toISOString(), humeurPar: 'Alexandra' } };
+    latest.current = { ...prev, quotidien: q }; setData(latest.current); setSync('pending');
+    viewerCall({ a: 'humeur', humeur: hNext }).then(() => { setSync('ok'); toast(hNext ? 'Humeur enregistrée : ' + hNext.toLowerCase() : 'Humeur effacée'); }).catch(e => { setSync('error'); toast('Humeur non enregistrée : ' + e.message, 'err'); });
+  }
+  async function viewerStart(pw, remember) {
+    setGateMsg(''); setPhase('loading');
+    try { const d = await viewerLogin(pw, remember); const s = normalize(d); s.apiKey = ''; latest.current = s; setData(s); setPhase('ready'); }
+    catch (e) { setGateMsg(e.message); setPhase('gate'); }
+  }
   useEffect(() => {
     onUploadsChange = n => setUploadsLeft(n);
     onUploaded = (id, did) => save(d => ({ ...d, driveFiles: { ...(d.driveFiles || {}), [id]: did } }));
@@ -2054,19 +2130,24 @@ function App() {
     try { await cloudLogin(); await bootCloud(); } catch (e) { setGateMsg(e.message); setPhase('gate'); }
   }
   function logout() {
+    if (G.viewer) { viewerSignOut(); setData(null); latest.current = null; setPhase('gate'); setShowSettings(false); return; }
     if ((dirty.current || uploadsLeft) && !confirm('Des modifications ou des fichiers sont encore en cours d\'envoi. Se déconnecter quand même ?')) return;
     cloudSignOut(); setData(null); latest.current = null; setPhase('gate'); setShowSettings(false);
   }
   useEffect(() => {
     if (!CLOUD.on) return;
-    if (cloudResume()) bootCloud(); else setPhase('gate');
+    const vpw = viewerSaved();
+    if (vpw) viewerStart(vpw, !!(function () { try { return localStorage.getItem(VK); } catch (e) { return null; } })());
+    else if (cloudResume()) bootCloud(); else setPhase('gate');
     const onVis = async () => {
-      if (document.hidden || dirty.current || cloudSaving.current) return;
+      if (document.hidden) return;
+      if (G.viewer) { try { const j = await viewerCall({ a: 'data' }); if (j.mod !== G.remoteMod) { G.remoteMod = j.mod; const s = normalize(j.data); s.apiKey = ''; latest.current = s; setData(s); } } catch (e) {} return; }
+      if (dirty.current || cloudSaving.current) return;
       try { const doc = await cloudFetchIfChanged(); if (doc) { const s = normalize(doc); driveMap = { ...driveMap, ...(s.driveFiles || {}) }; latest.current = s; setData(s); toast('Données mises à jour depuis l\'autre appareil'); } } catch (e) {}
     };
     document.addEventListener('visibilitychange', onVis);
     document.addEventListener('click', keepAlive, true);
-    const onUnload = e => { if (dirty.current || cloudSaving.current || uploadQ.length || uploading) { e.preventDefault(); e.returnValue = ''; } };
+    const onUnload = e => { if (G.viewer) return; if (dirty.current || cloudSaving.current || uploadQ.length || uploading) { e.preventDefault(); e.returnValue = ''; } };
     window.addEventListener('beforeunload', onUnload);
     return () => { document.removeEventListener('visibilitychange', onVis); document.removeEventListener('click', keepAlive, true); window.removeEventListener('beforeunload', onUnload); };
   }, []);
@@ -2113,6 +2194,7 @@ function App() {
     setJob(j => { if (j && j.total > 1) toast(`✓ Analyse terminée (${j.total} éléments). Pensez à actualiser le bilan sur l'accueil.`); return null; });
   }
   const enqueue = useCallback(items => {
+    if (G.viewer) return toast('Consultation seulement : les analyses sont lancées par Julien.');
     if (!latest.current.apiKey) { toast('Ajoutez votre clé API dans les réglages ⚙', 'err'); setShowSettings(true); return; }
     const fresh = items.filter(it => !queue.current.some(q => q.kind === it.kind && q.id === it.id));
     if (!fresh.length) return;
@@ -2201,26 +2283,26 @@ function App() {
     doc.save(`dossier_grossesse_${(saAt(p) || { sa: 0 }).sa}SA.pdf`);
   }
 
-  if (phase === 'gate') return <Gate msg={gateMsg} onLogin={login} />;
+  if (phase === 'gate') return <Gate msg={gateMsg} onLogin={login} onViewer={viewerStart} />;
   if (!data || phase !== 'ready') return <div className="loading-screen"><div className="spinner" />{phase === 'loading' ? 'Ouverture du dossier dans Google Drive…' : 'Chargement du dossier…'}</div>;
-  const ctx = { data, save, enqueue, job, toast, importDocs, pendingList, sync, uploadsLeft, cloud: CLOUD.on, email: G.email, isOwner: G.isOwner, logout, importJSON, openSettings: () => setShowSettings(true) };
+  const ctx = { viewer: G.viewer, data, save, enqueue, job, toast, importDocs, pendingList, sync, uploadsLeft, cloud: CLOUD.on, email: G.email, isOwner: G.isOwner, logout, importJSON, openSettings: () => setShowSettings(true) };
   const cur = saAt(data.profil);
   return (
     <Ctx.Provider value={ctx}>
-      <div className="app-shell">
+      <div className={`app-shell${G.viewer ? ' ro' : ''}`}>
         <aside className="side">
           <button className="brand" onClick={() => setTab('home')}><Pampa size={46} /><span className="brand-name">BébéSuivi</span><span className="brand-sub">{data.profil.prenom || 'Alexandra'}{cur ? ' · ' + fmtSA(cur) : ''}</span></button>
           <nav className="nav" aria-label="Sections">{NAV.map(([id, l]) => <button key={id} className={`nav-btn${tab === id ? ' active' : ''}`} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}><Ico name={id} />{l}</button>)}</nav>
           <div className="side-foot">
-            {CLOUD.on && <div className={`sync ${uploadsLeft ? 'pending' : sync}`}><i />{sync === 'error' ? 'Drive : nouvel essai bientôt' : uploadsLeft ? `Envoi de ${uploadsLeft} fichier${uploadsLeft > 1 ? 's' : ''}…` : sync === 'pending' ? 'Enregistrement…' : 'Enregistré dans Drive'}</div>}
+            {G.viewer && <div className="small">Consultation (Alexandra)</div>}{CLOUD.on && <div className={`sync ${uploadsLeft ? 'pending' : sync}`}><i />{sync === 'error' ? 'Drive : nouvel essai bientôt' : uploadsLeft ? `Envoi de ${uploadsLeft} fichier${uploadsLeft > 1 ? 's' : ''}…` : sync === 'pending' ? 'Enregistrement…' : 'Enregistré dans Drive'}</div>}
             <button className="side-link" onClick={exportPDF}>Exporter le dossier en PDF</button>
-            <button className="side-link" onClick={() => setShowSettings(true)}>Réglages{data.apiKey ? '' : ' · ajouter la clé IA'}</button>
+            {G.viewer ? <button className="side-link" onClick={logout}>Se déconnecter</button> : <button className="side-link" onClick={() => setShowSettings(true)}>Réglages{data.apiKey ? '' : ' · ajouter la clé IA'}</button>}
           </div>
         </aside>
         <div className="main">
         <div className="mobile-top">
           <button className="brand" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }} onClick={() => setTab('home')}><Pampa size={30} /><span className="brand-name">BébéSuivi</span></button>
-          <div className="flex gap-1" style={{ alignItems: 'center' }}>{CLOUD.on && <span className={`sync ${uploadsLeft ? 'pending' : sync}`} title="État de l'enregistrement"><i /></span>}<button className="api-btn" onClick={() => setShowSettings(true)}>Réglages</button></div>
+          <div className="flex gap-1" style={{ alignItems: 'center' }}>{CLOUD.on && <span className={`sync ${uploadsLeft ? 'pending' : sync}`} title="État de l'enregistrement"><i /></span>}{G.viewer ? <button className="api-btn" onClick={logout}>Quitter</button> : <button className="api-btn" onClick={() => setShowSettings(true)}>Réglages</button>}</div>
         </div>
         {job && <div className="job-bar" role="status"><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} /><span>Analyse {Math.min(job.done + 1, job.total)}/{job.total} · {job.label}</span><div className="progress-bar"><div className="progress-fill" style={{ width: (job.done / job.total * 100) + '%' }} /></div></div>}
         <div className="content">

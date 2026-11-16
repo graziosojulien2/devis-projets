@@ -35,11 +35,22 @@ function SettingsModal({ onClose, onExport, onImport }) {
     try { await claude({ apiKey: f.apiKey, model: f.modelDoc, system: 'Réponds OK.', content: [{ type: 'text', text: 'Test' }], max_tokens: 5 }); setTest('Connexion à l\'IA réussie'); }
     catch (e) { setTest('Échec : ' + e.message); }
   }
-  async function share() {
+  const [vpw, setVpw] = useState(''), [vpw2, setVpw2] = useState(''), [vOn, setVOn] = useState(null);
+  const [scriptUrl, setScriptUrl0] = useState(() => { try { return localStorage.getItem('bebesuivi.script') || ''; } catch (e) { return ''; } });
+  const setScriptUrl = u => { setScriptUrl0(u); try { localStorage.setItem('bebesuivi.script', u); } catch (e) {} CLOUD.SCRIPT = u; };
+  const inviteLink = location.origin + location.pathname + '#acces=' + encodeURIComponent(scriptUrl);
+  useEffect(() => { if (cloud && isOwner) cloudViewerEnabled().then(setVOn).catch(() => {}); }, []);
+  async function setViewerPw() {
+    if (vpw.length < 6) return toast('Mot de passe trop court (6 caractères minimum)', 'err');
+    if (vpw !== vpw2) return toast('Les deux mots de passe ne correspondent pas', 'err');
     setSharing(true);
-    try { await cloudShareWithPartner(); save(d => ({ ...d, sharedWith: CLOUD.PARTNER })); toast('Dossier partagé avec Alexandra : elle a reçu un e-mail de Google.'); }
-    catch (e) { toast('Partage impossible : ' + e.message, 'err'); }
+    try { await cloudSetViewerPassword(vpw); setVOn(true); setVpw(''); setVpw2(''); toast('Mot de passe d\'Alexandra enregistré.'); }
+    catch (e) { toast('Échec : ' + e.message, 'err'); }
     setSharing(false);
+  }
+  async function disableViewer() {
+    if (!confirm('Couper l\'accès d\'Alexandra ?')) return;
+    try { await cloudDisableViewer(); setVOn(false); toast('Accès d\'Alexandra coupé.'); } catch (e) { toast('Échec : ' + e.message, 'err'); }
   }
   const syncTxt = sync === 'error' ? 'Enregistrement dans Drive en échec, nouvel essai automatique' : sync === 'pending' ? 'Enregistrement en cours…' : 'Tout est enregistré dans Google Drive';
   return (
@@ -52,10 +63,21 @@ function SettingsModal({ onClose, onExport, onImport }) {
         {uploadsLeft > 0 && <div className="kv"><span>Fichiers en cours d'envoi</span><span>{uploadsLeft}</span></div>}
         <div className="flex gap-1 mt-2" style={{ flexWrap: 'wrap' }}>
           <a className="btn btn-outline btn-sm" href={folderURL()} target="_blank" rel="noopener">Ouvrir le dossier Drive</a>
-          {isOwner && <button className="btn btn-sm" onClick={share} disabled={sharing}>{sharing ? 'Partage…' : data.sharedWith ? 'Repartager avec Alexandra' : 'Partager avec Alexandra'}</button>}
           <button className="btn btn-terra btn-sm" onClick={logout}>Se déconnecter</button>
         </div>
-        {isOwner && <p className="small muted mt-1">Alexandra se connecte avec son compte Google ({CLOUD.PARTNER}) et voit le même dossier.</p>}
+      </div>}
+      {cloud && isOwner && <div className="card card-sm mb-3" style={{ background: 'var(--lin-2)' }}>
+        <div className="h3" style={{ fontSize: '1.25rem' }}>Accès d'Alexandra</div>
+        <p className="small muted mb-2">Avec ce mot de passe, Alexandra ouvre le même lien, choisit « Accès Alexandra » et peut tout consulter. La seule chose qu'elle peut changer, c'est son humeur du jour. {vOn === true ? 'Accès actif.' : vOn === false ? 'Accès pas encore activé.' : ''}</p>
+        <div className="grid-2 mb-1">
+          <div><label htmlFor="vp1">{vOn ? 'Nouveau mot de passe' : 'Mot de passe'}</label><input id="vp1" type="password" autoComplete="new-password" value={vpw} onChange={e => setVpw(e.target.value)} /></div>
+          <div><label htmlFor="vp2">Confirmer</label><input id="vp2" type="password" autoComplete="new-password" value={vpw2} onChange={e => setVpw2(e.target.value)} /></div>
+        </div>
+        <div className="mb-1"><label htmlFor="vsu">Adresse du service d'accès (Apps Script, se termine par /exec)</label><input id="vsu" type="url" value={scriptUrl} onChange={e => setScriptUrl(e.target.value.trim())} placeholder="https://script.google.com/macros/s/…/exec" /></div>
+        {/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(scriptUrl) && <div className="mb-2"><label>Lien à envoyer à Alexandra (une seule fois)</label>
+          <div className="flex gap-1"><input type="text" readOnly value={inviteLink} onFocus={e => e.target.select()} /><button className="btn btn-outline btn-sm" onClick={() => { navigator.clipboard && navigator.clipboard.writeText(inviteLink); toast('Lien copié'); }}>Copier</button></div>
+          <p className="small muted mt-1">Envoie le mot de passe séparément (de vive voix, par exemple).</p></div>}
+        <div className="flex gap-1"><button className="btn btn-sm" onClick={setViewerPw} disabled={sharing || !vpw}>{sharing ? 'Enregistrement…' : vOn ? 'Changer le mot de passe' : 'Activer l\'accès'}</button>{vOn && <button className="btn btn-terra btn-sm" onClick={disableViewer}>Couper l'accès</button>}</div>
       </div>}
       <div className="mb-2"><label>Clé API Claude (console.anthropic.com)</label><input type="password" value={f.apiKey} onChange={e => setF({ ...f, apiKey: e.target.value })} placeholder="sk-ant-api03-…" autoComplete="off" />
         <p className="small muted mt-1">La clé reste sur cet appareil : elle n'est jamais envoyée dans Drive ni dans les sauvegardes.</p></div>
@@ -118,7 +140,7 @@ function Baby3DArch({ height = 440, compact }) {
   const dSA = dateForSA(data.profil, saShown);
   const taille = getTaille(Math.floor(saShown));
   return (
-    <div className="arch-col">
+    <div className="arch-col ro-ok">
       <div className="arch" style={{ height }}>
         {!big && <Baby3DCanvas measures={measures} mode={mode} auto={auto} focus={focus} height={height} rendererRef={rr} />}
       </div>
@@ -185,15 +207,15 @@ function TodayCard({ go }) {
   return (
     <div>
       <h2 className="h3" style={{ fontSize: '1.7rem', marginBottom: 12 }}>Aujourd'hui pour Alexandra</h2>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>Humeur</div>
-      <div className="chips" style={{ marginBottom: 14 }}>
+      <div className="eyebrow" style={{ marginBottom: 8 }}>Humeur{day.humeurPar ? ` · notée par ${day.humeurPar}` : ''}</div>
+      <div className="chips ro-ok" style={{ marginBottom: 14 }}>
         {HUMEURS.slice(0, 5).map(h => <button key={h} className={`chip${day.humeur === h ? ' on' : ''}`} aria-pressed={day.humeur === h} onClick={() => set({ humeur: day.humeur === h ? '' : h })}>{h}</button>)}
       </div>
       <div className="eyebrow" style={{ marginBottom: 8 }}>Compléments du jour</div>
       <div className="chips">
         {comps.map(c => <button key={c} className={`chip${taken[c] ? ' on' : ''}`} aria-pressed={!!taken[c]} onClick={() => set({ complements: { ...taken, [c]: !taken[c] } })}>{taken[c] ? '✓ ' : ''}{c}</button>)}
       </div>
-      <button className="side-link" style={{ marginTop: 8 }} onClick={() => go('quotidien')}>Sommeil, symptômes et notes du jour</button>
+      <button className="side-link ro-ok" style={{ marginTop: 8 }} onClick={() => go('quotidien')}>Sommeil, symptômes et notes du jour</button>
     </div>
   );
 }
@@ -213,11 +235,11 @@ function QuotidienTab() {
       <div className="grid-2 mb-3" style={{ alignItems: 'start' }}>
         <div className="card">
           <div className="row-between mb-2">
-            <div><label>Jour</label><input type="date" value={date} max={todayISO()} onChange={e => e.target.value && setDate(e.target.value)} style={{ width: 180 }} /></div>
+            <div className="ro-ok"><label>Jour</label><input type="date" value={date} max={todayISO()} onChange={e => e.target.value && setDate(e.target.value)} style={{ width: 180 }} /></div>
             {o && <span className="badge badge-teal">{fmtSA(o)}</span>}
           </div>
           <label>Humeur</label>
-          <div className="chips mb-2">{HUMEURS.map(h => <button key={h} className={`chip${day.humeur === h ? ' on' : ''}`} onClick={() => set({ humeur: day.humeur === h ? '' : h })}>{h}</button>)}</div>
+          <div className={`chips mb-2${date === todayISO() ? ' ro-ok' : ''}`}>{HUMEURS.map(h => <button key={h} className={`chip${day.humeur === h ? ' on' : ''}`} onClick={() => set({ humeur: day.humeur === h ? '' : h })}>{h}</button>)}</div>
           <label>Sommeil de la nuit</label>
           <div className="chips mb-2">{['Bon', 'Moyen', 'Difficile'].map(h => <button key={h} className={`chip${day.sommeil === h ? ' on' : ''}`} onClick={() => set({ sommeil: day.sommeil === h ? '' : h })}>{h}</button>)}
             <input type="number" min="0" max="14" step="0.5" placeholder="heures" value={day.heures || ''} onChange={e => set({ heures: e.target.value })} style={{ width: 100 }} /></div>
@@ -353,12 +375,12 @@ function HomeTab({ go }) {
 
       <div className="grid-2 mb-3">
         <div className="card">
-          <div className="row-between mb-2"><h2 className="h3" style={{ margin: 0 }}>Prochains rendez-vous</h2><button className="btn btn-outline btn-sm" onClick={() => go('agenda')}>Agenda</button></div>
+          <div className="row-between mb-2"><h2 className="h3" style={{ margin: 0 }}>Prochains rendez-vous</h2><button className="btn btn-outline btn-sm ro-ok" onClick={() => go('agenda')}>Agenda</button></div>
           {prochainsRdv.length === 0 && <p className="small muted">Aucun rendez-vous à venir.</p>}
           {prochainsRdv.map(r => <div key={r.id} className="kv"><span>{fmtDate(r.date, { weekday: 'short', day: 'numeric', month: 'short' })}{r.heure ? ' · ' + r.heure : ''}</span><span>{r.titre}{(r.questions || []).length ? ` · ${r.questions.length} question${r.questions.length > 1 ? 's' : ''}` : ''}</span></div>)}
         </div>
         <div className="card">
-          <div className="row-between mb-2"><h2 className="h3" style={{ margin: 0 }}>À faire bientôt</h2><button className="btn btn-outline btn-sm" onClick={() => go('naissance')}>Naissance</button></div>
+          <div className="row-between mb-2"><h2 className="h3" style={{ margin: 0 }}>À faire bientôt</h2><button className="btn btn-outline btn-sm ro-ok" onClick={() => go('naissance')}>Naissance</button></div>
           {demarches.length === 0 && <p className="small muted">Rien d'urgent côté démarches.</p>}
           {demarches.map(x => (
             <label key={x.id} className="check-row" style={{ margin: 0, fontWeight: 400, color: 'var(--text)' }}>
@@ -443,7 +465,7 @@ function RdvPrepModal({ rdv, onClose }) {
       <textarea rows="5" value={cr} onChange={e => setCr(e.target.value)} onBlur={() => cr !== (r.compteRendu || '') && upd({ compteRendu: cr })} placeholder="Notes en vrac : ce que la sage-femme a dit, tension, poids, prochains examens…" />
       <div className="flex gap-1 mt-1"><button className="btn btn-outline btn-sm" onClick={resume} disabled={busy || cr.trim().length < 10}>{busy ? 'Rédaction…' : 'Mettre au propre avec l\'IA'}</button>{r.statut !== 'Fait' && <button className="btn btn-outline btn-sm" onClick={() => upd({ statut: 'Fait', compteRendu: cr })}>Marquer comme fait</button>}</div>
       {r.crResume && <div className="ai-bubble mt-2"><div className="ai-tag">Compte rendu</div><div style={{ whiteSpace: 'pre-wrap', fontSize: '0.92rem', lineHeight: 1.6 }}>{r.crResume}</div></div>}
-      <div className="flex gap-1 mt-3" style={{ justifyContent: 'flex-end' }}><button className="btn btn-sm" onClick={() => { if (cr !== (r.compteRendu || '')) upd({ compteRendu: cr }); onClose(); }}>Fermer</button></div>
+      <div className="flex gap-1 mt-3" style={{ justifyContent: 'flex-end' }}><button className="btn btn-sm ro-ok" onClick={() => { if (cr !== (r.compteRendu || '')) upd({ compteRendu: cr }); onClose(); }}>Fermer</button></div>
     </Modal>
   );
 }
@@ -468,7 +490,7 @@ function ProjetNaissance() {
   const p = data.profil;
   return (
     <div>
-      <div className="row-between mb-2 no-print"><p className="small muted" style={{ maxWidth: 620 }}>À remplir à deux, puis à imprimer pour la sage-femme et la maternité. Ce sont des souhaits : l'équipe s'adapte au déroulé de l'accouchement.</p><button className="btn btn-sm" onClick={() => window.print()}>Imprimer</button></div>
+      <div className="row-between mb-2 no-print"><p className="small muted" style={{ maxWidth: 620 }}>À remplir à deux, puis à imprimer pour la sage-femme et la maternité. Ce sont des souhaits : l'équipe s'adapte au déroulé de l'accouchement.</p><button className="btn btn-sm ro-ok" onClick={() => window.print()}>Imprimer</button></div>
       <div className="card">
         <div className="print-only" style={{ marginBottom: 16 }}><h1 style={{ fontSize: 32 }}>Projet de naissance</h1><p>{[p.prenom, p.nom].filter(Boolean).join(' ')} · terme prévu le {fmtDate(termeDate(p))} · {p.maternite || ''}</p></div>
         {PROJET_SECTIONS.map(([k, t, ph]) => <div key={k} className="mb-2"><label htmlFor={'pn-' + k} style={{ fontFamily: 'var(--serif)', fontSize: '1.2rem', color: 'var(--encre)', fontWeight: 600 }}>{t}</label>
@@ -495,7 +517,7 @@ function FicheJourJ() {
   const Row = ({ k, v }) => <div className="kv"><span>{k}</span><span>{v || '—'}</span></div>;
   return (
     <div>
-      <div className="row-between mb-2 no-print"><p className="small muted">Une page à garder dans la valise et sur le téléphone : tout ce qu'on vous demandera à l'arrivée.</p><button className="btn btn-sm" onClick={() => window.print()}>Imprimer</button></div>
+      <div className="row-between mb-2 no-print"><p className="small muted">Une page à garder dans la valise et sur le téléphone : tout ce qu'on vous demandera à l'arrivée.</p><button className="btn btn-sm ro-ok" onClick={() => window.print()}>Imprimer</button></div>
       <div className="card jourj">
         <div className="jourj-head"><Pampa size={46} /><h2 className="h3" style={{ fontSize: '2rem', margin: '6px 0 0' }}>Fiche Jour J</h2><p className="muted">{[p.prenom, p.nom].filter(Boolean).join(' ')}</p></div>
         <div className="grid-2">
