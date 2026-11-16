@@ -36,7 +36,7 @@ function SettingsModal({ onClose, onExport, onImport }) {
     catch (e) { setTest('Échec : ' + e.message); }
   }
   const [vpw, setVpw] = useState(''), [vpw2, setVpw2] = useState(''), [vOn, setVOn] = useState(null);
-  const [scriptUrl, setScriptUrl0] = useState(() => { try { return localStorage.getItem('bebesuivi.script') || ''; } catch (e) { return ''; } });
+  const [scriptUrl, setScriptUrl0] = useState(() => CLOUD.SCRIPT || '');
   const setScriptUrl = u => { setScriptUrl0(u); try { localStorage.setItem('bebesuivi.script', u); } catch (e) {} CLOUD.SCRIPT = u; };
   const inviteLink = location.origin + location.pathname + '#acces=' + encodeURIComponent(scriptUrl);
   useEffect(() => { if (cloud && isOwner) cloudViewerEnabled().then(setVOn).catch(() => {}); }, []);

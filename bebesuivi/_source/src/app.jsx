@@ -454,7 +454,7 @@ CLOUD.SCRIPT = (function () { // service « accès Alexandra » (Apps Script), t
   try {
     const m = /[#&]acces=([^&]+)/.exec(location.hash);
     if (m) { const u = decodeURIComponent(m[1]); if (/^https:\/\/script\.google(usercontent)?\.com\//.test(u)) localStorage.setItem('bebesuivi.script', u); history.replaceState(null, '', location.pathname + location.search); }
-    return localStorage.getItem('bebesuivi.script') || '';
+    return localStorage.getItem('bebesuivi.script') || 'https://script.google.com/macros/s/AKfycbzUSzaZxZZlGKWcIrUctFJgUXDUOZmuyF7Sfkbhjj3crk6Wmpx7DFc_wbkDI4tNZ_IjxQ/exec';
   } catch (e) { return ''; }
 })();
 CLOUD.ACCES = 'bebesuivi-acces.json';
