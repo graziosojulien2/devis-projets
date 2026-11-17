@@ -773,7 +773,9 @@ function SettingsModal({ onClose, onExport, onImport }) {
         <div className="small muted mt-1" style={{ lineHeight: 1.6 }}>
           <p className="mb-1">{APP_NAME} est un carnet personnel pour organiser le suivi de votre grossesse. Il ne pose aucun diagnostic et ne remplace pas l'avis de votre sage-femme, de votre médecin ou de la maternité. En cas de doute ou de symptôme inhabituel, contactez-les ou appelez le 15.</p>
           <p className="mb-1">Les valeurs moyennes (taille, poids, mesures) sont indicatives. Les dates de démarches et de congés sont calculées à partir de votre terme et des règles connues : vérifiez votre situation sur ameli.fr, caf.fr et service-public.fr.</p>
-          <p>Bébé en 3D est une illustration reconstituée, ce n'est pas une image réelle.</p>
+          <p className="mb-1">Bébé en 3D est une illustration reconstituée, ce n'est pas une image réelle.</p>
+          <p className="mb-1">Vos données restent sur cet appareil : aucun compte, aucune publicité, aucun traceur. <a href="https://graziosojulien2.github.io/devis-projets/nide/confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a></p>
+          <p style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>Éditée par <b style={{ color: 'var(--encre)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>KJN <span className="flag-fr" role="img" aria-label="France"><i /><i /><i /></span></b> · <a href="mailto:ilario.commercial@gmail.com">ilario.commercial@gmail.com</a></p>
         </div>
       </details>
       <div className="row-between">
