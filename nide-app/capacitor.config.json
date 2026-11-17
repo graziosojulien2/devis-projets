@@ -1,0 +1,6 @@
+{
+  "appId": "fr.nide.grossesse",
+  "appName": "Nidé",
+  "webDir": "www",
+  "android": { "backgroundColor": "#F7F3EC" }
+}

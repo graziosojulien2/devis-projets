@@ -2364,7 +2364,7 @@ function App() {
           {BOTTOM.map(id => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Ico name={id} />{(NAV.find(n => n[0] === id) || [])[1]}</button>)}
           <button className={!BOTTOM.includes(tab) ? 'active' : ''} onClick={() => setMore(true)}><Ico name="plus" />Plus</button>
         </nav>
-        {more && <Modal onClose={() => setMore(false)}><h2 className="h3">Toutes les sections</h2><div className="more-sheet">{NAV.filter(n => !BOTTOM.includes(n[0])).map(([id, l]) => <button key={id} onClick={() => { setTab(id); setMore(false); }}><Ico name={id} />{l}</button>)}<button onClick={() => { premium ? exportPDF() : setPaywall('pdf'); setMore(false); }}><Ico name="docs" />Dossier PDF</button></div></Modal>}
+        {more && <Modal onClose={() => setMore(false)}><h2 className="h3">Toutes les sections</h2><div className="more-sheet">{NAV.filter(n => !BOTTOM.includes(n[0])).map(([id, l]) => <button key={id} onClick={() => { setTab(id); setMore(false); }}><Ico name={id} />{l}{!premium && PAID_TABS.includes(id) && <span className="lock">◆</span>}</button>)}<button onClick={() => { premium ? exportPDF() : setPaywall('pdf'); setMore(false); }}><Ico name="docs" />Dossier PDF</button></div></Modal>}
         {paywall && <Paywall why={paywall} onClose={() => setPaywall(null)} onUnlock={unlock} />}
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onExport={exportJSON} onImport={importJSON} />}
         <div className="toast-wrap">{toasts.map(t => <div key={t.id} className={`toast${t.kind === 'err' ? ' err' : ''}`}>{t.msg}</div>)}</div>

@@ -635,7 +635,7 @@ const BOTTOM = ['home', 'quotidien', 'echos', 'agenda'];
 async function pdfLib() {
   const L = window.pdfjsLib;
   if (!L) throw new Error('Lecteur PDF indisponible');
-  if (!L.GlobalWorkerOptions.workerSrc) L.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  if (!L.GlobalWorkerOptions.workerSrc) L.GlobalWorkerOptions.workerSrc = window.PDF_WORKER || 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   return L;
 }
 function findTiles(gray, W, H, AR = 1.33) {

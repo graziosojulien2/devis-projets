@@ -1,0 +1,14 @@
+{
+  "name": "nide-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nidé – Suivi de grossesse (appli Capacitor)",
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0"
+  }
+}
