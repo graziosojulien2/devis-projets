@@ -100,3 +100,9 @@ Le modèle applique désormais une flexion illustrative progressive des hanches 
 Les comptes rendus indiquant explicitement une présentation transverse ou oblique déclenchent maintenant une rotation du modèle autour de son centre, respectivement d'environ 90° et 45°. La présentation en siège conserve le retournement tête vers le haut. La matrice d'orientation du visage est transformée avec la géométrie afin de conserver un cadrage cohérent. L'utérus et le placenta restent fixes.
 
 Le script complet a passé une vérification de syntaxe JavaScript après ces modifications. Cette vérification ne compile pas le shader WebGL et ne remplace pas un contrôle visuel sur les navigateurs/appareils. Les angles sont des conventions graphiques simplifiées, pas une mesure de l'orientation anatomique exacte dans l'utérus.
+
+## Tests paramétriques de la géométrie 3D — exécutés
+
+La fonction de géométrie `fetusGeometry` a été isolée du fichier applicatif et exécutée dans un banc de test JavaScript avec des mesures d'exemple plausibles. 25 configurations ont été évaluées : 5 termes (12, 20, 28, 32 et 40 SA) × 5 présentations (céphalique, siège, transverse, oblique et non précisée). Les vecteurs anatomiques et de cadrage vérifiés sont tous finis (aucune valeur NaN/Infinity). Le test confirme notamment que le siège inverse l'axe tête-tronc, que transverse/oblique appliquent une rotation et que la taille du conteneur utérin reste constante entre ces présentations au même terme.
+
+Ces tests valident la stabilité numérique de la fonction de géométrie, pas son apparence. Aucun navigateur réel, compilateur GLSL ou contexte WebGL matériel n'étant disponible dans cet environnement, la compilation du shader et le rendu visuel sur ordinateur/iOS/Android restent à effectuer manuellement. Les mesures utilisées sont synthétiques et aucun dossier médical personnel n'a été chargé.
