@@ -64,3 +64,9 @@ Le mécanisme de sauvegarde Google Drive a été ajusté : lorsqu'une modificati
 Le comportement a été durci : si la version distante a changé depuis le dernier chargement, l'application tente maintenant de créer deux copies datées, l'une de la version distante et l'autre de la version locale. Elle interrompt ensuite la sauvegarde automatique au lieu d'écrire l'une des versions par-dessus l'autre. L'interface affiche un message explicite et ne relance pas automatiquement cette écriture conflictuelle.
 
 Cette mesure réduit le risque d'écrasement, mais la résolution reste manuelle : il faut comparer les deux fichiers de récupération et réconcilier les données avant de reprendre le suivi. Il ne s'agit pas encore d'une fusion automatique. Si la création des copies échoue partiellement, le fichier principal n'est pas modifié par cette tentative ; une copie peut néanmoins avoir été créée.
+
+## Validation des dates — correction appliquée
+
+La fonction de lecture des dates vérifie maintenant que la date existe réellement dans le calendrier avant de la retourner. Les dates impossibles (par exemple 31 février, 31 avril ou mois 13) et les formats non reconnus sont rejetés au lieu d'être normalisés automatiquement par JavaScript.
+
+Vérification locale de la fonction sur 10 cas : année bissextile valide, 29 février non bissextile, jours hors plage, mois hors plage, date valide, date ISO avec heure et formats non reconnus. Les 10 résultats attendus ont été obtenus. Ces tests ciblent la fonction de parsing ; ils ne remplacent pas une recette complète de l'application.
