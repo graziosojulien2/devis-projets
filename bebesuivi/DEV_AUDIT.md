@@ -52,3 +52,9 @@ Cette branche est isolée de `main`. La version principale n'a pas été modifi�
 ## Décision de cet audit
 
 Aucun changement fonctionnel n'a été apporté à `index.html`. Les points ci-dessus sont des constats de revue statique et des pistes de validation ; ils ne constituent pas des tests exécutés ni une certification de sécurité ou médicale.
+
+## Première correction appliquée sur la branche de développement
+
+Le mécanisme de sauvegarde Google Drive a été ajusté : lorsqu'une modification distante est détectée, l'application tente désormais de lire la version distante et d'en créer une copie JSON datée dans le dossier BébéSuivi avant d'écrire la version locale. Si la lecture ou la création de cette copie échoue, la sauvegarde est interrompue avec une erreur explicite au lieu d'écraser la version distante. L'interface signale la présence de cette copie de récupération.
+
+**Limite importante :** ce correctif ajoute un filet de récupération, mais ne réalise pas une fusion complète des dossiers et ne supprime pas la fenêtre de concurrence entre la dernière vérification distante et l'écriture. La synchronisation doit encore être testée avec deux appareils et une stratégie de versionnement atomique reste recommandée. Aucun test réel Google Drive n'a été exécuté depuis cet environnement.
