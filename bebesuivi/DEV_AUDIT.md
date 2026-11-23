@@ -1,0 +1,54 @@
+# BébéSuivi — branche de développement et audit initial
+
+Date : 23 novembre 2026  
+Branche : `bebesuivi-dev`  
+Base : `main`  
+Périmètre : audit statique du fichier `bebesuivi/index.html`. Aucun test navigateur, test réel Google Drive ou test médical n'a été exécuté.
+
+## Règle de sécurité
+
+Cette branche est isolée de `main`. La version principale n'a pas été modifiée et aucun déploiement n'a été effectué. Les évolutions doivent être réalisées et vérifiées ici avant toute proposition de fusion.
+
+## État de l'application
+
+- Application React 18 chargée depuis des CDN, dans un fichier HTML unique.
+- Stockage local via IndexedDB (`kv` et `files`) et synchronisation Google Drive.
+- Fonctions de suivi de grossesse, échographies, analyses, mesures, rendez-vous, documents, ordonnances et préparation de naissance.
+- Moteur 3D WebGL procédural : la géométrie du fœtus est calculée à partir de BIP, PC, PA et LF. Ce rendu est une visualisation illustrative paramétrique, pas une reconstruction médicale fidèle de l'échographie.
+
+## Points à traiter avant toute évolution fonctionnelle
+
+### Priorité haute — intégrité et sauvegardes
+1. **Conflits de synchronisation incomplets.** `cloudSave` détecte une modification distante, mais la fusion visible ne porte que sur les champs d'humeur du quotidien. Le reste de l'état local peut remplacer des changements distants. Concevoir une vraie stratégie de fusion/versionnement avant de faire confiance à la synchronisation multi-appareils.
+2. **Échec de sauvegarde locale.** La sauvegarde IndexedDB est asynchrone et son échec est signalé par un toast ; vérifier que l'interface ne présente jamais des données non persistées comme sauvegardées.
+3. **Fichiers et Drive.** Les uploads sont mis en file d'attente et réessayés ; vérifier les doublons, les suppressions, la reprise après fermeture du navigateur et la cohérence entre `driveFiles`, IndexedDB et Drive.
+
+### Priorité haute — accès et confidentialité
+1. Le flux Google utilise le scope OAuth `https://www.googleapis.com/auth/drive`, très large. Évaluer si un scope plus restreint est possible sans casser le fonctionnement.
+2. Vérifier les règles de partage Drive, le contrôle d'accès côté Apps Script, le parcours propriétaire/partenaire/consultation et la révocation des accès. Un contrôle dans l'interface seule ne suffit pas à sécuriser les données.
+3. Vérifier le stockage, la durée de vie et la révocation des jetons, ainsi que la gestion des erreurs d'autorisation.
+4. Les données de grossesse et documents sont sensibles : limiter les journaux, exports et données envoyées à des services tiers. Les bibliothèques externes chargées par CDN et les fonctions IA doivent faire l'objet d'une revue de confidentialité.
+
+### Priorité moyenne — calculs de grossesse
+1. `ddrEff` privilégie la date de début de grossesse avec un décalage de 14 jours, sinon la DDR ; `termeDate` ajoute 287 jours à cette date de référence. Ajouter des tests de dates limites, années bissextiles, saisies incomplètes et changements de datation médicale.
+2. Vérifier que les mesures échographiques sont datées et comparées à des références cohérentes, et que les valeurs manquantes ne sont pas confondues avec des valeurs nulles.
+3. Les rappels d'examens et textes de santé doivent rester indicatifs et être validés par une sage-femme ou un médecin. L'application ne doit pas donner l'impression de remplacer un avis médical.
+
+### Priorité moyenne — moteur 3D
+1. Le rendu utilise WebGL et un shader de ray marching ; le contexte peut être indisponible et la compilation du shader peut échouer.
+2. Ajouter des tests de compilation WebGL, de redimensionnement, de perte/restauration du contexte, de navigation tactile et de performances sur mobile.
+3. Afficher clairement que la morphologie est une illustration paramétrique fondée sur des biométries, et non une image diagnostique ni une prédiction exacte de l'apparence du bébé.
+
+## Plan de validation recommandé
+
+- [ ] Créer une copie de sauvegarde exportable avant chaque migration de données.
+- [ ] Tests unitaires des calculs SA/terme et des conversions de biométrie.
+- [ ] Tests de synchronisation sur deux navigateurs : modifications simultanées, hors-ligne, reconnexion, suppression de fichier et conflits.
+- [ ] Vérifier les permissions Drive avec les comptes propriétaire et partenaire, y compris révocation.
+- [ ] Tests manuels WebGL sur ordinateur, iOS et Android, avec WebGL désactivé et appareil peu puissant.
+- [ ] Vérifier l'accessibilité clavier, les messages d'erreur et les états de sauvegarde.
+- [ ] Ne fusionner vers `main` qu'après validation et sauvegarde vérifiée.
+
+## Décision de cet audit
+
+Aucun changement fonctionnel n'a été apporté à `index.html`. Les points ci-dessus sont des constats de revue statique et des pistes de validation ; ils ne constituent pas des tests exécutés ni une certification de sécurité ou médicale.
