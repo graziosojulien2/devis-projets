@@ -78,3 +78,9 @@ La collecte des mesures utilisées par les courbes et la visualisation 3D filtre
 12 cas de contrôle ont été simulés sur la règle de validation (valeurs plausibles, zéro, négatif, valeurs excessives, champ inconnu et valeur non numérique) : résultats conformes aux attentes.
 
 **Limite :** ces plages sont des garde-fous informatiques très larges, pas des intervalles médicaux de normalité, ni des critères diagnostiques. Une valeur filtrée doit rester consultable dans le document source ; l'application ne doit pas conclure à une anomalie clinique à partir de ce filtre.
+
+## Robustesse du rendu 3D — restauration WebGL
+
+Le composant de rendu 3D écoute maintenant les événements `webglcontextlost` et `webglcontextrestored`. À la perte du contexte, il empêche l'annulation automatique de l'événement, invalide la référence au moteur et affiche un état explicite. Lorsque le contexte revient, il recrée le moteur à partir des dernières propriétés (mesures, mode, animation et cadrage), plutôt que de réutiliser un contexte devenu invalide. Le nettoyage retire les écouteurs et détruit le moteur à la fermeture du composant.
+
+La modification a été relue statiquement dans la branche. Aucun test WebGL réel sur navigateur ou téléphone n'a été exécuté ici ; la restauration matérielle reste à valider sur plusieurs appareils.
