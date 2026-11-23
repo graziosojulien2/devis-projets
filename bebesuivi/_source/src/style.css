@@ -186,6 +186,9 @@
   .home-hero { display: flex; flex-wrap: wrap; gap: 28px; align-items: stretch; margin-bottom: 26px; }
   .arch { position: relative; border-radius: 260px 260px 22px 22px; overflow: hidden; border: 1px solid var(--or-l); background: #1C0F08; }
   .arch canvas { border-radius: 0 !important; }
+  .baby-img-frame { position: relative; border-radius: 22px; overflow: hidden; border: 1px solid var(--or-l); background: #1C0F08; aspect-ratio: 3 / 2; cursor: zoom-in; }
+  .baby-img-frame img { width: 100%; height: 100%; object-fit: cover; display: block; animation: babyfade .45s ease; }
+  @keyframes babyfade { from { opacity: .25; } to { opacity: 1; } }
   .arch-col { flex: 1 1 400px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
   .side-col { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 22px; }
   .week-figs { display: flex; gap: 30px; flex-wrap: wrap; margin-bottom: 10px; }

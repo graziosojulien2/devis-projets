@@ -117,7 +117,7 @@ function measuresForSA(lb, saTarget, curDec) {
   return { bip: base.bip * rt.bip / refEcho.bip, pc: base.pc * rt.pc / refEcho.pc, pa: base.pa * rt.pa / refEcho.pa, lf: base.lf * rt.lf / refEcho.lf, sa: saTarget };
 }
 function estWeight(sa) { // poids moyen indicatif (g)
-  const T = [[12, 14], [14, 45], [16, 100], [18, 190], [20, 300], [22, 430], [24, 600], [26, 760], [28, 1000], [30, 1300], [32, 1700], [34, 2150], [36, 2600], [38, 3080], [40, 3400], [41, 3550]];
+  const T = [[8, 1], [10, 4], [12, 14], [14, 45], [16, 100], [18, 190], [20, 300], [22, 430], [24, 600], [26, 760], [28, 1000], [30, 1300], [32, 1700], [34, 2150], [36, 2600], [38, 3080], [40, 3400], [41, 3550]];
   if (sa <= T[0][0]) return T[0][1];
   for (let i = 0; i < T.length - 1; i++) if (sa <= T[i + 1][0]) { const t = (sa - T[i][0]) / (T[i + 1][0] - T[i][0]); return T[i][1] + t * (T[i + 1][1] - T[i][1]); }
   return T[T.length - 1][1];
@@ -175,6 +175,86 @@ function Baby3DArch({ height = 440, compact }) {
             <button className="lb-btn" onClick={() => snap(rrBig)}>Enregistrer</button>
             <button className="lb-btn" onClick={() => setBig(false)}>Fermer</button>
           </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ============================================================
+   BÉBÉ EN IMAGES — une image par stade, position lue dans les comptes rendus
+   ============================================================ */
+const BABY_STAGES = [8, 12, 16, 20, 24, 28, 32, 36, 40];
+const BABY_POS = { cephalique: 'Céphalique', siege: 'Siège', transverse: 'Transverse' };
+function classifyPresentation(txt) {
+  const t = String(txt || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (!t.trim()) return null;
+  if (/siege|podali|breech|fesses en bas/.test(t)) return 'siege';
+  if (/transvers|travers|oblique|dorso|epaule/.test(t)) return 'transverse';
+  if (/cephal|tete en bas|sommet|vertex|occipit/.test(t)) return 'cephalique';
+  return null;
+}
+function latestPresentation(data) {
+  const c = [];
+  (data.documents || []).forEach(d => { if (d.status === 'ok' && d.biometrie && d.biometrie.presentation) c.push({ date: d.date || '', txt: d.biometrie.presentation, src: d.titre || d.nom || 'Compte rendu' }); });
+  Object.entries(data.seances || {}).forEach(([k, s]) => { if (s && s.status === 'ok' && s.position) c.push({ date: k, txt: s.position, src: 'Écho du ' + fmtShort(k) }); });
+  c.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  for (const x of c) { const pos = classifyPresentation(x.txt); if (pos) return { pos, date: x.date, src: x.src, txt: x.txt }; }
+  return null;
+}
+function babyStageFor(sa) { let best = BABY_STAGES[0]; BABY_STAGES.forEach(s => { if (Math.abs(s - sa) < Math.abs(best - sa) || (Math.abs(s - sa) === Math.abs(best - sa) && s < best)) best = s; }); return best; }
+function babyImageFor(sa, pos) { const st = babyStageFor(sa); const n = String(st).padStart(2, '0'); return { stage: st, src: st >= 28 ? `img/bebe/semaine-${n}-${pos || 'cephalique'}.jpg` : `img/bebe/semaine-${n}.jpg` }; }
+function BabyImageArch({ compact }) {
+  const { data } = useApp();
+  const cur = saAt(data.profil);
+  const curDec = cur ? Math.min(41, cur.dec) : 26;
+  const [saV, setSaV] = useState(null); // null = aujourd'hui
+  const [posV, setPosV] = useState(null); // null = automatique (compte rendu)
+  const [big, setBig] = useState(false);
+  const pres = useMemo(() => latestPresentation(data), [data.documents, data.seances]);
+  const saShown = saV == null ? curDec : saV;
+  const pos = posV || (pres && pres.pos) || 'cephalique';
+  const img = babyImageFor(saShown, pos);
+  const late = img.stage >= 28;
+  useEffect(() => { [-4, 4].forEach(d => { const st = img.stage + d; if (st >= 8 && st <= 40) { const im = new Image(); im.src = babyImageFor(st, pos).src; } }); }, [img.src]);
+  const dSA = dateForSA(data.profil, saShown);
+  const taille = getTaille(Math.floor(saShown));
+  const rd = v => Math.round(v);
+  const posTxt = !late ? 'Position libre — bébé se retourne encore souvent' : posV ? `Position ${BABY_POS[pos].toLowerCase()} (choisie manuellement)` : pres ? `Position ${BABY_POS[pos].toLowerCase()} — d'après ${pres.src}${pres.date ? ' (' + fmtShort(pres.date) + ')' : ''}` : 'Position céphalique par défaut — aucune présentation trouvée dans les comptes rendus';
+  function download() { const a = document.createElement('a'); a.href = img.src; a.download = img.src.split('/').pop(); document.body.appendChild(a); a.click(); a.remove(); }
+  return (
+    <div className="arch-col ro-ok">
+      <div className="baby-img-frame" onClick={() => !compact && setBig(true)} role="button" aria-label="Agrandir l'image">
+        <img key={img.src} src={img.src} alt={`Illustration de bébé vers ${img.stage} SA${late ? ', position ' + BABY_POS[pos].toLowerCase() : ''}`} />
+      </div>
+      <div style={{ padding: '0 6px' }}>
+        <div className="row-between" style={{ alignItems: 'baseline' }}>
+          <span className="eyebrow">{saV == null ? 'Aujourd\'hui' : dSA ? fmtDate(dSA, { day: 'numeric', month: 'long' }) : ''} · {fmtSA({ sa: Math.floor(saShown), j: Math.round((saShown % 1) * 7) % 7 })}</span>
+          <span className="eyebrow">≈ {taille ? taille[2] + ' cm · ' : ''}{rd(estWeight(saShown))} g</span>
+        </div>
+        <input type="range" min="8" max="41" step="0.5" value={saShown} aria-label="Semaine de grossesse affichée" onChange={e => { const v = Number(e.target.value); setSaV(Math.abs(v - curDec) < 0.3 ? null : v); }} style={{ marginTop: 8 }} />
+        <div className="row-between small muted"><span>8 SA</span>{saV != null && <button className="pill" style={{ padding: '3px 12px' }} onClick={() => setSaV(null)}>Revenir à aujourd'hui</button>}<span>41 SA</span></div>
+        <p className="small muted" style={{ margin: '8px 0 0' }}>{posTxt}</p>
+        <div className="chips" style={{ marginTop: 8 }}>
+          {late && <>
+            <button className={`chip${posV == null ? ' on' : ''}`} onClick={() => setPosV(null)}>Auto</button>
+            {Object.entries(BABY_POS).map(([k, l]) => <button key={k} className={`chip${posV === k ? ' on' : ''}`} onClick={() => setPosV(k)}>{l}</button>)}
+          </>}
+          {!compact && <button className="chip" onClick={() => setBig(true)}>Plein écran</button>}
+          <button className="chip" onClick={download}>Enregistrer l'image</button>
+        </div>
+        {!compact && <p className="small muted" style={{ marginTop: 10, lineHeight: 1.55 }}>
+          Image du stade le plus proche ({img.stage} SA). Taille et poids affichés : repères moyens pour la semaine. Illustration pédagogique, pas une image réelle de bébé.
+        </p>}
+      </div>
+      {big && <div className="lightbox" onClick={() => setBig(false)}>
+        <img src={img.src} alt="" onClick={e => e.stopPropagation()} style={{ maxHeight: '82vh' }} />
+        <div className="lb-bar" onClick={e => e.stopPropagation()}>
+          <button className="lb-btn" onClick={() => setSaV(Math.max(8, saShown - 4))}>← 4 semaines</button>
+          <span>{img.stage} SA{late ? ' · ' + BABY_POS[pos] : ''}</span>
+          <button className="lb-btn" onClick={() => setSaV(Math.min(41, saShown + 4))}>4 semaines →</button>
+          <button className="lb-btn" onClick={download}>Enregistrer</button>
+          <button className="lb-btn" onClick={() => setBig(false)}>Fermer</button>
         </div>
       </div>}
     </div>
@@ -351,7 +431,7 @@ function HomeTab({ go }) {
         <button className="btn btn-outline btn-sm" onClick={() => setShowProfil(true)}>Profil de grossesse</button>
       </header>
       <section className="home-hero">
-        <Baby3DArch height={460} />
+        <BabyImageArch />
         <div className="side-col">
           <div className="card">
             <h2 className="h3" style={{ fontSize: '1.7rem' }}>Cette semaine</h2>
