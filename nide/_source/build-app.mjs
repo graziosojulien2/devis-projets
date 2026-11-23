@@ -20,6 +20,7 @@ for (const [pkg, files] of [['cormorant-garamond', ['500.css', '600.css', '500-i
 css = css.replace(/@font-face\s*{[^}]*}/g, b => /latin(-ext)?-\d+-(normal|italic)\.woff2/.test(b) ? b : '');
 fs.writeFileSync(`${out}/vendor/fonts.css`, css);
 html = html.replace(/<link rel="preconnect"[^\n]*\n/, '').replace(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>\n?/, '<link rel="stylesheet" href="vendor/fonts.css">\n');
+fs.cpSync('dist/img', `${out}/img`, { recursive: true });
 for (const f of ['icon.svg', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest']) fs.copyFileSync(`dist/${f}`, `${out}/${f}`);
 fs.writeFileSync(`${out}/index.html`, html);
 if (/(src|href)="https:/.test(html)) throw new Error('Il reste des liens CDN');

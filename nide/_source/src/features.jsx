@@ -122,62 +122,52 @@ function estWeight(sa) { // poids moyen indicatif (g)
   for (let i = 0; i < T.length - 1; i++) if (sa <= T[i + 1][0]) { const t = (sa - T[i][0]) / (T[i + 1][0] - T[i][0]); return T[i][1] + t * (T[i + 1][1] - T[i][1]); }
   return T[T.length - 1][1];
 }
-function Baby3DArch({ height = 440, compact }) {
-  const { data, premium, askPremium } = useApp();
+const BABY_WEEKS = [8, 12, 16, 20, 24, 28, 32, 36, 40];
+const POSITIONS = [['cephalique', 'Tête en bas'], ['siege', 'En siège'], ['transverse', 'Transverse']];
+function babyImage(sa, pos, vue) {
+  let w = BABY_WEEKS[0]; for (const x of BABY_WEEKS) if (sa >= x) w = x;
+  const key = w >= 28 ? `${w}-${pos || 'cephalique'}` : String(w).padStart(2, '0');
+  return { w, src: `img/${vue === 'seul' ? 's' : 'u'}-${key}.webp` };
+}
+function Baby3DArch({ height = 440 }) {
+  const { data, save, premium, askPremium } = useApp();
   const cur = saAt(data.profil);
-  const lb = latestBiometrie(data);
-  const curDec = cur ? Math.min(41, cur.dec) : 26;
-  const [saV, setSaV] = useState(null); // null = aujourd'hui
-  const [mode, setMode] = useState(0);
-  const [auto, setAuto] = useState(true);
-  const [focus, setFocus] = useState(false);
+  const curDec = cur ? Math.min(41, cur.dec) : 20;
+  const [saV, setSaV] = useState(null);
+  const [vue, setVue] = useState('ventre');
   const [big, setBig] = useState(false);
-  const rr = useRef(null), rrBig = useRef(null);
   const saShown = saV == null ? curDec : saV;
-  const measures = measuresForSA(lb, saShown, curDec);
-  const rd = v => Math.round(v);
-  function snap(ref) { const r = ref.current; if (!r) return; const a = document.createElement('a'); a.href = r.snapshot(); a.download = `bebe_3D_${Math.floor(saShown)}SA.png`; document.body.appendChild(a); a.click(); a.remove(); }
-  const dSA = dateForSA(data.profil, saShown);
+  const pos = data.profil.presentation || 'cephalique';
+  const img = babyImage(saShown, pos, vue);
   const taille = getTaille(Math.floor(saShown));
+  const dSA = dateForSA(data.profil, saShown);
+  useEffect(() => { // précharge l'autre vue et les étapes voisines
+    [babyImage(saShown, pos, vue === 'seul' ? 'ventre' : 'seul').src].forEach(s => { const i = new Image(); i.src = s; });
+  }, [img.src]);
   return (
-    <div className="arch-col ro-ok">
-      <div className="arch" style={{ height }}>
-        {!big && <Baby3DCanvas measures={measures} mode={mode} auto={premium && auto} focus={focus} height={height} rendererRef={rr} />}
-        {!premium && <button className="arch-lock" onClick={() => askPremium('3d')}>Voir bébé bouger en 3D</button>}
+    <div className="arch-col">
+      <div className={`baby-pic${vue === 'seul' ? ' seul' : ''}`} style={{ height }}>
+        <img key={img.src} src={img.src} alt={`Illustration de bébé vers ${img.w} semaines d'aménorrhée${img.w >= 28 ? ', position ' + (POSITIONS.find(p => p[0] === pos) || [])[1] : ''}`} onClick={() => premium ? setBig(true) : askPremium('3d')} />
+        {!premium && <button className="arch-lock" onClick={() => askPremium('3d')}>Voir toutes les semaines</button>}
       </div>
       <div style={{ padding: '0 6px' }}>
         <div className="row-between" style={{ alignItems: 'baseline' }}>
           <span className="eyebrow">{saV == null ? 'Aujourd\'hui' : dSA ? fmtDate(dSA, { day: 'numeric', month: 'long' }) : ''} · {fmtSA({ sa: Math.floor(saShown), j: Math.round((saShown % 1) * 7) % 7 })}</span>
-          <span className="eyebrow">≈ {taille ? taille[2] + ' cm · ' : ''}{rd(estWeight(saShown))} g</span>
+          <span className="eyebrow">≈ {taille ? taille[2] + ' cm · ' : ''}{Math.round(estWeight(saShown))} g</span>
         </div>
-        {premium && <input type="range" min="12" max="41" step="0.5" value={saShown} aria-label="Semaine de grossesse affichée" onChange={e => { const v = Number(e.target.value); setSaV(Math.abs(v - curDec) < 0.3 ? null : v); }} style={{ marginTop: 8 }} />}
-        {premium && <div className="row-between small muted"><span>12 SA</span>{saV != null && <button className="pill" style={{ padding: '3px 12px' }} onClick={() => setSaV(null)}>Revenir à aujourd'hui</button>}<span>41 SA</span></div>}
-        {premium && <div className="chips" style={{ marginTop: 10 }}>
-          <button className={`chip${!focus ? ' on' : ''}`} onClick={() => setFocus(false)}>Dans le ventre</button>
-          <button className={`chip${focus ? ' on' : ''}`} onClick={() => setFocus(true)}>Visage</button>
-          <button className={`chip${mode === 1 ? ' on' : ''}`} onClick={() => setMode(m => 1 - m)}>Teinte peau</button>
-          <button className="chip" onClick={() => setAuto(a => !a)}>{auto ? 'Pause' : 'Animer'}</button>
-          {!compact && <button className="chip" onClick={() => setBig(true)}>Plein écran</button>}
-          <button className="chip" onClick={() => snap(rr)}>Enregistrer l'image</button>
+        {premium && <input type="range" min="8" max="41" step="1" value={Math.round(saShown)} aria-label="Semaine de grossesse affichée" onChange={e => { const v = Number(e.target.value); setSaV(Math.abs(v - curDec) < 0.6 ? null : v); }} style={{ marginTop: 8 }} />}
+        {premium && <div className="row-between small muted"><span>8 SA</span>{saV != null && <button className="pill" style={{ padding: '3px 12px' }} onClick={() => setSaV(null)}>Revenir à aujourd'hui</button>}<span>41 SA</span></div>}
+        <div className="chips" style={{ marginTop: 10 }}>
+          <button className={`chip${vue === 'ventre' ? ' on' : ''}`} aria-pressed={vue === 'ventre'} onClick={() => setVue('ventre')}>Dans l'utérus</button>
+          <button className={`chip${vue === 'seul' ? ' on' : ''}`} aria-pressed={vue === 'seul'} onClick={() => setVue('seul')}>Bébé seul</button>
+        </div>
+        {saShown >= 28 && <div style={{ marginTop: 10 }}>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>Position de bébé (indiquée à l'écho)</div>
+          <div className="chips">{POSITIONS.map(([k, l]) => <button key={k} className={`chip${pos === k ? ' on' : ''}`} aria-pressed={pos === k} onClick={() => save(d => ({ ...d, profil: { ...d.profil, presentation: k } }))}>{l}</button>)}</div>
         </div>}
-        {!compact && <p className="small muted" style={{ marginTop: 10, lineHeight: 1.55 }}>
-          {lb.complete ? <>Proportions de bébé calculées d'après les mesures de l'écho du {fmtDate(lb.date)} (BIP {rd(lb.m.bip)}, PC {rd(lb.m.pc)}, PA {rd(lb.m.pa)}, fémur {rd(lb.m.lf)} mm), projetées à la semaine choisie.</> : <>Proportions moyennes : saisissez les mesures de vos échos dans Courbes pour que bébé prenne ses vraies proportions.</>}
-          {' '}Bébé se retourne tête en bas vers 28–34 SA. Glissez pour tourner, molette pour zoomer. Illustration reconstituée, pas une image réelle.
-        </p>}
+        <p className="small muted" style={{ marginTop: 10, lineHeight: 1.55 }}>Illustration indicative du développement de bébé autour de cette semaine : chaque bébé est unique.</p>
       </div>
-      {big && <div className="lightbox" onClick={() => setBig(false)}>
-        <div onClick={e => e.stopPropagation()} style={{ width: 'min(92vw, 92vh)', maxWidth: 900 }}>
-          <Baby3DCanvas measures={measures} mode={mode} auto={auto} focus={focus} height={'min(78vh, 86vw)'} rendererRef={rrBig} />
-          <div className="flex gap-1" style={{ justifyContent: 'center', flexWrap: 'wrap', marginTop: 10 }}>
-            <button className="lb-btn" onClick={() => setFocus(f => !f)}>{focus ? 'Dans le ventre' : 'Visage'}</button>
-            <button className="lb-btn" onClick={() => setMode(m => 1 - m)}>{mode === 0 ? 'Teinte peau' : 'Teinte écho'}</button>
-            <button className="lb-btn" onClick={() => rrBig.current && rrBig.current.zoomBy(1.15)}>Zoom +</button>
-            <button className="lb-btn" onClick={() => rrBig.current && rrBig.current.zoomBy(0.87)}>Zoom −</button>
-            <button className="lb-btn" onClick={() => snap(rrBig)}>Enregistrer</button>
-            <button className="lb-btn" onClick={() => setBig(false)}>Fermer</button>
-          </div>
-        </div>
-      </div>}
+      {big && <div className="lightbox" onClick={() => setBig(false)}><img src={img.src} alt="" style={{ maxHeight: '86vh' }} /><div className="lb-bar"><button className="lb-btn" onClick={e => { e.stopPropagation(); setVue(v => v === 'seul' ? 'ventre' : 'seul'); }}>{vue === 'seul' ? 'Dans l\'utérus' : 'Bébé seul'}</button><button className="lb-btn" onClick={() => setBig(false)}>Fermer</button></div></div>}
     </div>
   );
 }
@@ -701,10 +691,10 @@ async function extractEchoTiles(pdfDataURL, onProgress) {
    ============================================================ */
 const PAID_TABS = ['echos', 'resultats', 'mesures', 'docs', 'ordonnances'];
 const PAYWALL_TXT = {
-  '3d': 'Faites tourner bébé, regardez son visage et faites défiler les semaines jusqu\'à la naissance.',
+  '3d': 'Faites défiler les semaines et voyez bébé grandir, de l\'embryon jusqu\'à la naissance, en grand écran.',
   echos: 'Rangez les photos de chaque échographie par séance, même les planches PDF, découpées automatiquement.',
   resultats: 'Notez vos résultats d\'analyses et retrouvez-les dans un tableau par date.',
-  mesures: 'Saisissez les mesures de vos échos et comparez-les aux moyennes. Bébé en 3D prend alors ses vraies proportions.',
+  mesures: 'Saisissez les mesures de vos échos et comparez-les aux moyennes.',
   docs: 'Gardez tous vos comptes rendus, ordonnances et résultats au même endroit, consultables à tout moment.',
   ordonnances: 'Gardez vos ordonnances et retrouvez vos traitements dans la fiche Jour J.',
   pdf: 'Exportez tout votre dossier en PDF pour la sage-femme ou la maternité.',
@@ -715,7 +705,7 @@ const PAYWALL_TXT = {
   n_ventre: 'L\'album photo de votre ventre, semaine après semaine.',
   n_mouvements: 'Comptez les mouvements de bébé.',
 };
-const PAYWALL_LIST = ['Bébé en 3D complète, de 12 à 41 semaines', 'Échographies rangées par séance', 'Courbes de croissance avec les vraies mesures', 'Résultats d\'analyses par date', 'Démarches et congés calculés pour vous', 'Projet de naissance et fiche Jour J', 'Liste d\'achats, album du ventre, mouvements', 'Export PDF du dossier complet'];
+const PAYWALL_LIST = ['Bébé illustré semaine après semaine, de 8 à 41 SA', 'Échographies rangées par séance', 'Courbes de croissance avec les vraies mesures', 'Résultats d\'analyses par date', 'Démarches et congés calculés pour vous', 'Projet de naissance et fiche Jour J', 'Liste d\'achats, album du ventre, mouvements', 'Export PDF du dossier complet'];
 function Paywall({ why, onClose, onUnlock }) {
   const [code, setCode] = useState('');
   return (
@@ -773,7 +763,7 @@ function SettingsModal({ onClose, onExport, onImport }) {
         <div className="small muted mt-1" style={{ lineHeight: 1.6 }}>
           <p className="mb-1">{APP_NAME} est un carnet personnel pour organiser le suivi de votre grossesse. Il ne pose aucun diagnostic et ne remplace pas l'avis de votre sage-femme, de votre médecin ou de la maternité. En cas de doute ou de symptôme inhabituel, contactez-les ou appelez le 15.</p>
           <p className="mb-1">Les valeurs moyennes (taille, poids, mesures) sont indicatives. Les dates de démarches et de congés sont calculées à partir de votre terme et des règles connues : vérifiez votre situation sur ameli.fr, caf.fr et service-public.fr.</p>
-          <p className="mb-1">Bébé en 3D est une illustration reconstituée, ce n'est pas une image réelle.</p>
+          <p className="mb-1">Les illustrations de bébé sont indicatives : ce ne sont pas des images réelles.</p>
           <p className="mb-1">Vos données restent sur cet appareil : aucun compte, aucune publicité, aucun traceur. <a href="https://graziosojulien2.github.io/devis-projets/nide/confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a></p>
           <p style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>Éditée par <b style={{ color: 'var(--encre)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>KJN <span className="flag-fr" role="img" aria-label="France"><i /><i /><i /></span></b> · <a href="mailto:ilario.commercial@gmail.com">ilario.commercial@gmail.com</a></p>
         </div>
