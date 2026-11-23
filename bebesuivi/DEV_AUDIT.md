@@ -70,3 +70,11 @@ Cette mesure réduit le risque d'écrasement, mais la résolution reste manuelle
 La fonction de lecture des dates vérifie maintenant que la date existe réellement dans le calendrier avant de la retourner. Les dates impossibles (par exemple 31 février, 31 avril ou mois 13) et les formats non reconnus sont rejetés au lieu d'être normalisés automatiquement par JavaScript.
 
 Vérification locale de la fonction sur 10 cas : année bissextile valide, 29 février non bissextile, jours hors plage, mois hors plage, date valide, date ISO avec heure et formats non reconnus. Les 10 résultats attendus ont été obtenus. Ces tests ciblent la fonction de parsing ; ils ne remplacent pas une recette complète de l'application.
+
+## Contrôle de cohérence des biométries — correction appliquée
+
+La collecte des mesures utilisées par les courbes et la visualisation 3D filtre désormais les valeurs non numériques, nulles, négatives et hors de plages techniques larges : BIP 1–150 mm, PC/PA 1–500 mm, LF 1–120 mm et poids fœtal 1–10 000 g. Les dates/âges gestationnels associés doivent également être finis et compris entre 0 et 45 semaines décimales. Les données enregistrées dans le dossier ne sont pas modifiées : le filtre intervient uniquement au moment de la collecte pour les graphiques et le modèle 3D.
+
+12 cas de contrôle ont été simulés sur la règle de validation (valeurs plausibles, zéro, négatif, valeurs excessives, champ inconnu et valeur non numérique) : résultats conformes aux attentes.
+
+**Limite :** ces plages sont des garde-fous informatiques très larges, pas des intervalles médicaux de normalité, ni des critères diagnostiques. Une valeur filtrée doit rester consultable dans le document source ; l'application ne doit pas conclure à une anomalie clinique à partir de ce filtre.
